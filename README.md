@@ -581,7 +581,7 @@ curl http://localhost:5001/api/ml/model-status
 
 ## Team
 
-**RationMitra** was built as a B.Tech final-year project at **M.V.S.R. Engineering College**, Department of CSE (AI & ML), Batch 2025-2026.
+**RationMitra** was built as a B.Tech second-year project at **M.V.S.R. Engineering College**, Department of CSE (AI & ML), Batch 2025-2026.
 
 | Name | Role |
 |------|------|
