@@ -30,7 +30,9 @@ class StockForecaster:
                 'depletionDate': None,
                 'reorderDate': None,
                 'reorderUrgency': 'unknown',
+                'recommendedReorder': 0,
                 'trend': 'insufficient_data',
+                'isLowStock': current_stock <= reorder_level,
             }
 
         # Calculate daily consumption rate
