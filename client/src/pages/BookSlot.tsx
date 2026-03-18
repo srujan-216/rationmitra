@@ -68,7 +68,7 @@ const BookSlot = () => {
       </div>
 
       {slots.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {slots.map((slot) => (
             <div key={slot.slotId} className={`rounded-xl border-2 p-5 ${slot.available ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
               <div className="flex justify-between items-center mb-3">

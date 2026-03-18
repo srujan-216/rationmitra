@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface FraudAlert {
   _id: string;
@@ -51,13 +52,18 @@ const FraudAlerts = () => {
 
   const filtered = filter === 'all' ? alerts : alerts.filter((a) => a.status === filter);
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading alerts...</div>;
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) return <LoadingSpinner message="Loading alerts..." />;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Fraud Detection Alerts</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'open', 'investigating', 'resolved'].map((f) => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition capitalize ${
@@ -95,7 +101,7 @@ const FraudAlerts = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((alert) => (
+          {paged.map((alert) => (
             <div key={alert._id} className="bg-white rounded-xl shadow-sm p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -134,6 +140,15 @@ const FraudAlerts = () => {
               </div>
             </div>
           ))}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 pt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition">Previous</button>
+              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition">Next</button>
+            </div>
+          )}
         </div>
       )}
     </div>

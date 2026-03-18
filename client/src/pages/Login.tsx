@@ -8,9 +8,19 @@ const Login = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Enter a valid email address';
+    if (!form.password) errs.password = 'Password is required';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
     try {
       await login(form.email, form.password);
@@ -21,6 +31,11 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const update = (field: string, value: string) => {
+    setForm({ ...form, [field]: value });
+    if (errors[field]) setErrors({ ...errors, [field]: '' });
   };
 
   return (
@@ -38,10 +53,11 @@ const Login = () => {
               type="email"
               required
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
+              onChange={(e) => update('email', e.target.value)}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="you@example.com"
             />
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
           <div>
@@ -50,10 +66,11 @@ const Login = () => {
               type="password"
               required
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
+              onChange={(e) => update('password', e.target.value)}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition ${errors.password ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="Enter your password"
             />
+            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           </div>
 
           <button

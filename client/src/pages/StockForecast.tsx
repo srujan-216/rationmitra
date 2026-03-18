@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Forecast {
   itemName: string;
@@ -103,7 +104,7 @@ const StockForecast = () => {
   }, [shopId]);
 
   if (!shopId) return <div className="text-center py-12 text-gray-500">No shop assigned.</div>;
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading forecasts...</div>;
+  if (loading) return <LoadingSpinner message="Loading forecasts..." />;
 
   const criticalItems = forecasts.filter((f) => f.reorderUrgency === 'critical' || f.reorderUrgency === 'high');
 

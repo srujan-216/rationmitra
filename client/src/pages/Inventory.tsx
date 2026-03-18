@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import type { InventoryItem } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Inventory = () => {
   const { user } = useAuth();
@@ -50,7 +51,7 @@ const Inventory = () => {
     return <div className="text-center py-12 text-gray-500">No shop assigned to your account.</div>;
   }
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading inventory...</div>;
+  if (loading) return <LoadingSpinner message="Loading inventory..." />;
 
   return (
     <div>
@@ -118,8 +119,8 @@ const Inventory = () => {
           <p className="text-gray-500">No inventory items yet. Add stock to get started.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Item</th>

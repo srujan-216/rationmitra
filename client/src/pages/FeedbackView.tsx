@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface ShopSentiment {
   totalFeedbacks: number;
@@ -32,7 +33,7 @@ const FeedbackView = () => {
   }, [shopId]);
 
   if (!shopId) return <div className="text-center py-12 text-gray-500">No shop assigned.</div>;
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading feedback...</div>;
+  if (loading) return <LoadingSpinner message="Loading feedback..." />;
   if (!data) return null;
 
   const total = data.sentimentDistribution.positive + data.sentimentDistribution.neutral + data.sentimentDistribution.negative;

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { io as socketIO, Socket } from 'socket.io-client';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface QueueEntry {
   _id: string;
@@ -83,7 +84,7 @@ const QueueManage = () => {
     );
   }
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading queue...</div>;
+  if (loading) return <LoadingSpinner message="Loading queue..." />;
 
   return (
     <div>
@@ -107,7 +108,7 @@ const QueueManage = () => {
                   <h3 className="font-semibold text-primary-800">{q.slot?.slotId || `Slot ${idx + 1}`}</h3>
                   <p className="text-sm text-primary-600">{q.slot?.startTime} - {q.slot?.endTime}</p>
                 </div>
-                <div className="flex gap-4 text-sm">
+                <div className="flex flex-wrap gap-2 text-sm">
                   <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">Waiting: {q.waiting}</span>
                   <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">In Service: {q.inService}</span>
                   <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">Completed: {q.completed}</span>

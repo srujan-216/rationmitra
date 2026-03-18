@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import type { Booking } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusColors: Record<string, string> = {
   waiting: 'bg-yellow-100 text-yellow-800',
@@ -38,7 +39,12 @@ const MyBookings = () => {
     }
   };
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading bookings...</div>;
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(bookings.length / PAGE_SIZE);
+  const paged = bookings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) return <LoadingSpinner message="Loading bookings..." />;
 
   return (
     <div>
@@ -50,7 +56,7 @@ const MyBookings = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {bookings.map((b, i) => (
+          {paged.map((b, i) => (
             <div key={i} className="bg-white rounded-xl shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h3 className="font-semibold text-gray-800">{b.shop?.name || 'Shop'}</h3>
@@ -73,6 +79,15 @@ const MyBookings = () => {
               </div>
             </div>
           ))}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 pt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition">Previous</button>
+              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition">Next</button>
+            </div>
+          )}
         </div>
       )}
     </div>

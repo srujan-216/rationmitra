@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Notification {
   _id: string;
@@ -24,7 +25,12 @@ const Notifications = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading notifications...</div>;
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(notifications.length / PAGE_SIZE);
+  const paged = notifications.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) return <LoadingSpinner message="Loading notifications..." />;
 
   return (
     <div>
@@ -36,7 +42,7 @@ const Notifications = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((n) => (
+          {paged.map((n) => (
             <div key={n._id} className="bg-white rounded-xl shadow-sm p-5 flex items-start gap-4">
               <span className="text-2xl mt-0.5">{channelIcons[n.channel] || '\uD83D\uDD14'}</span>
               <div className="flex-1">
@@ -52,6 +58,15 @@ const Notifications = () => {
               </div>
             </div>
           ))}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 pt-4">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition">Previous</button>
+              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition">Next</button>
+            </div>
+          )}
         </div>
       )}
     </div>

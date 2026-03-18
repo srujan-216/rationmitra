@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import type { DashboardData } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const StatCard = ({ title, value, color, subtitle }: { title: string; value: string | number; color: string; subtitle?: string }) => (
   <div className={`bg-white rounded-xl shadow-sm border-l-4 ${color} p-6`}>
@@ -22,7 +23,7 @@ const AdminDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading dashboard...</div>;
+  if (loading) return <LoadingSpinner message="Loading dashboard..." />;
   if (!data) return <div className="text-center py-12 text-gray-500">Failed to load data.</div>;
 
   return (

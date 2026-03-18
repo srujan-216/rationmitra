@@ -70,7 +70,7 @@ const ShopOwnerDashboard = () => {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard title="Today's Bookings" value={stats.bookings} color="border-primary-500" />
         <StatCard title="Currently Waiting" value={stats.waiting} color="border-accent-400" />
         <StatCard title="Served Today" value={stats.served} color="border-green-500" />
@@ -110,7 +110,7 @@ const AdminDashboardQuick = () => {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard title="Total Users" value={stats.users} color="border-primary-500" />
         <StatCard title="Active Shops" value={stats.shops} color="border-green-500" />
         <StatCard title="Today's Bookings" value={stats.bookings} color="border-accent-400" />
