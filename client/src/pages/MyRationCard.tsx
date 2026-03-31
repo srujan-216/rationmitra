@@ -67,12 +67,20 @@ const MyRationCard = () => {
   });
   const [addCertificate, setAddCertificate] = useState<File | null>(null);
 
+  const [cardError, setCardError] = useState<string | null>(null);
+
   const fetchCard = async () => {
     try {
       const { data } = await api.get('/ration-cards/my-card');
       setCard(data);
-    } catch {
-      toast.error('Failed to load ration card');
+      setCardError(null);
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      if (msg) {
+        setCardError(msg);
+      } else {
+        toast.error('Failed to load ration card');
+      }
     }
   };
 
@@ -81,7 +89,7 @@ const MyRationCard = () => {
       const { data } = await api.get('/ration-cards/family-requests/mine');
       setRequests(data);
     } catch {
-      toast.error('Failed to load requests');
+      // silently ignore — requests depend on having a card
     }
   };
 
@@ -152,8 +160,16 @@ const MyRationCard = () => {
 
   if (!card) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        No ration card found for your account.
+      <div className="bg-white rounded-xl shadow-sm p-8 text-center max-w-lg mx-auto">
+        <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15A2.25 2.25 0 002.25 6.75v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
+        </svg>
+        <h2 className="text-lg font-semibold text-gray-700 mb-2">No Ration Card Found</h2>
+        <p className="text-gray-500 text-sm">
+          {cardError?.toLowerCase().includes('not found')
+            ? 'No ration card linked to your account yet. Please contact your local FPS or admin.'
+            : cardError || 'No ration card linked to your account yet. Please contact your local FPS or admin.'}
+        </p>
       </div>
     );
   }
@@ -186,7 +202,7 @@ const MyRationCard = () => {
           <h2 className="text-lg font-bold text-gray-800">Family Members</h2>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
           >
             {showAddForm ? 'Cancel' : '+ Add Family Member'}
           </button>
@@ -249,7 +265,7 @@ const MyRationCard = () => {
                 rows={2} placeholder="Reason for adding family member" />
             </div>
             <button type="submit" disabled={submitting}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2.5 rounded-lg transition disabled:opacity-50">
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2.5 rounded-lg transition disabled:opacity-50">
               {submitting ? 'Submitting...' : 'Submit Request'}
             </button>
           </form>

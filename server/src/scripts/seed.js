@@ -7,12 +7,20 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { mongoUri, bcryptSaltRounds } = require('../config/env');
 
+const crypto = require('crypto');
+
 const User = require('../models/User');
 const Shop = require('../models/Shop');
 const Queue = require('../models/Queue');
 const Inventory = require('../models/Inventory');
 const Feedback = require('../models/Feedback');
 const Notification = require('../models/Notification');
+const RationCard = require('../models/RationCard');
+const FamilyRequest = require('../models/FamilyRequest');
+const Distribution = require('../models/Distribution');
+const Grievance = require('../models/Grievance');
+const Allocation = require('../models/Allocation');
+const { CARD_TYPES, COMMODITIES, TELANGANA_DISTRICTS, ENTITLEMENT_RULES, COMMODITY_RATES } = require('../utils/telangana');
 
 const seed = async () => {
   await mongoose.connect(mongoUri);
@@ -26,6 +34,11 @@ const seed = async () => {
     Inventory.deleteMany({}),
     Feedback.deleteMany({}),
     Notification.deleteMany({}),
+    RationCard.deleteMany({}),
+    FamilyRequest.deleteMany({}),
+    Distribution.deleteMany({}),
+    Grievance.deleteMany({}),
+    Allocation.deleteMany({}),
   ]);
   console.log('Cleared existing data');
 
@@ -291,6 +304,324 @@ const seed = async () => {
   }
 
   console.log('Created 5 sample notifications');
+
+  // --- Ration Cards ---
+  const cardConfigs = [
+    { idx: 0, cardType: 'AAY', district: 'Hyderabad', mandal: 'Kukatpally', shop: shop1 },
+    { idx: 1, cardType: 'PHH', district: 'Hyderabad', mandal: 'Ameerpet', shop: shop2 },
+    { idx: 2, cardType: 'AAY', district: 'Rangareddy', mandal: 'Rajendranagar', shop: shop3 },
+    { idx: 3, cardType: 'PHH', district: 'Medchal-Malkajgiri', mandal: 'Medchal', shop: shop1 },
+    { idx: 4, cardType: 'PHH', district: 'Hyderabad', mandal: 'Secunderabad', shop: shop2 },
+    { idx: 5, cardType: 'APL', district: 'Rangareddy', mandal: 'Shamshabad', shop: shop3 },
+    { idx: 6, cardType: 'AAY', district: 'Hyderabad', mandal: 'Charminar', shop: shop1 },
+    { idx: 7, cardType: 'PHH', district: 'Medchal-Malkajgiri', mandal: 'Kompally', shop: shop2 },
+    { idx: 8, cardType: 'Annapurna', district: 'Hyderabad', mandal: 'Begumpet', shop: shop3 },
+    { idx: 9, cardType: 'PHH', district: 'Rangareddy', mandal: 'Miyapur', shop: shop1 },
+  ];
+
+  const familyData = [
+    [
+      { name: 'Priya Sharma', relation: 'self', dob: '1985-03-12', gender: 'female' },
+      { name: 'Rajesh Sharma', relation: 'spouse', dob: '1982-07-20', gender: 'male' },
+      { name: 'Aarav Sharma', relation: 'son', dob: '2010-11-05', gender: 'male' },
+    ],
+    [
+      { name: 'Amit Singh', relation: 'self', dob: '1990-06-15', gender: 'male' },
+      { name: 'Neha Singh', relation: 'spouse', dob: '1992-01-22', gender: 'female' },
+      { name: 'Riya Singh', relation: 'daughter', dob: '2015-08-10', gender: 'female' },
+      { name: 'Arjun Singh', relation: 'son', dob: '2018-04-30', gender: 'male' },
+    ],
+    [
+      { name: 'Lakshmi Devi', relation: 'self', dob: '1975-12-01', gender: 'female' },
+      { name: 'Venkatesh Rao', relation: 'spouse', dob: '1972-09-18', gender: 'male' },
+    ],
+    [
+      { name: 'Ravi Teja', relation: 'self', dob: '1988-02-28', gender: 'male' },
+      { name: 'Swathi Teja', relation: 'spouse', dob: '1990-05-14', gender: 'female' },
+      { name: 'Pranav Teja', relation: 'son', dob: '2014-07-22', gender: 'male' },
+      { name: 'Saanvi Teja', relation: 'daughter', dob: '2017-12-03', gender: 'female' },
+      { name: 'Kamala Devi', relation: 'mother', dob: '1960-08-10', gender: 'female' },
+    ],
+    [
+      { name: 'Anita Kumari', relation: 'self', dob: '1993-09-25', gender: 'female' },
+      { name: 'Manoj Kumar', relation: 'spouse', dob: '1991-04-11', gender: 'male' },
+      { name: 'Divya Kumari', relation: 'daughter', dob: '2019-06-15', gender: 'female' },
+    ],
+    [
+      { name: 'Sunil Reddy', relation: 'self', dob: '1980-11-07', gender: 'male' },
+      { name: 'Padma Reddy', relation: 'spouse', dob: '1983-03-19', gender: 'female' },
+      { name: 'Karthik Reddy', relation: 'son', dob: '2008-01-25', gender: 'male' },
+      { name: 'Sravani Reddy', relation: 'daughter', dob: '2012-10-08', gender: 'female' },
+    ],
+    [
+      { name: 'Meena Bai', relation: 'self', dob: '1970-04-20', gender: 'female' },
+      { name: 'Srinivas Rao', relation: 'spouse', dob: '1968-08-15', gender: 'male' },
+      { name: 'Harsha Rao', relation: 'son', dob: '1995-12-30', gender: 'male' },
+    ],
+    [
+      { name: 'Vikram Rao', relation: 'self', dob: '1986-07-14', gender: 'male' },
+      { name: 'Jyothi Rao', relation: 'spouse', dob: '1989-02-05', gender: 'female' },
+      { name: 'Tanvi Rao', relation: 'daughter', dob: '2016-09-12', gender: 'female' },
+      { name: 'Aditya Rao', relation: 'son', dob: '2020-03-01', gender: 'male' },
+    ],
+    [
+      { name: 'Kavitha Nair', relation: 'self', dob: '1965-01-30', gender: 'female' },
+      { name: 'Gopal Nair', relation: 'spouse', dob: '1960-06-22', gender: 'male' },
+    ],
+    [
+      { name: 'Deepak Verma', relation: 'self', dob: '1992-10-18', gender: 'male' },
+      { name: 'Pooja Verma', relation: 'spouse', dob: '1994-05-08', gender: 'female' },
+      { name: 'Ishaan Verma', relation: 'son', dob: '2021-01-15', gender: 'male' },
+      { name: 'Ramesh Verma', relation: 'father', dob: '1962-11-20', gender: 'male' },
+      { name: 'Sunita Verma', relation: 'mother', dob: '1965-04-05', gender: 'female' },
+    ],
+  ];
+
+  const rationCards = [];
+  for (let i = 0; i < 10; i++) {
+    const cfg = cardConfigs[i];
+    const members = familyData[i].map((m) => ({
+      name: m.name,
+      relation: m.relation,
+      dob: new Date(m.dob),
+      gender: m.gender,
+      aadhaarNumber: `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+      status: 'active',
+    }));
+
+    const rc = await RationCard.create({
+      cardNumber: `TS-2026-${String(i + 1).padStart(3, '0')}`,
+      cardType: cfg.cardType,
+      headOfFamily: cardholders[cfg.idx]._id,
+      familyMembers: members,
+      district: cfg.district,
+      mandal: cfg.mandal,
+      assignedFPS: cfg.shop._id,
+      isActive: true,
+      aadhaarLinked: i < 7,
+    });
+    rationCards.push(rc);
+  }
+
+  console.log('Created 10 ration cards');
+
+  // --- Family Requests ---
+  await FamilyRequest.create({
+    type: 'addition',
+    rationCardId: rationCards[0]._id,
+    requestedBy: cardholders[0]._id,
+    memberDetails: {
+      name: 'Baby Sharma',
+      relation: 'daughter',
+      dob: new Date('2025-12-15'),
+      gender: 'female',
+    },
+    reason: 'Newborn baby addition to ration card',
+    certificateUrl: '/uploads/certificates/birth_cert_001.pdf',
+    status: 'pending',
+  });
+
+  await FamilyRequest.create({
+    type: 'addition',
+    rationCardId: rationCards[1]._id,
+    requestedBy: cardholders[1]._id,
+    memberDetails: {
+      name: 'Sneha Gupta',
+      relation: 'spouse',
+      dob: new Date('1993-04-10'),
+      gender: 'female',
+    },
+    reason: 'Spouse addition after marriage',
+    certificateUrl: '/uploads/certificates/marriage_cert_002.pdf',
+    status: 'approved',
+    reviewedBy: admin._id,
+    reviewNotes: 'Marriage certificate verified. Approved.',
+    reviewedAt: new Date('2026-03-20'),
+  });
+
+  await FamilyRequest.create({
+    type: 'deletion',
+    rationCardId: rationCards[2]._id,
+    requestedBy: cardholders[2]._id,
+    memberIndex: 1,
+    memberDetails: {
+      name: 'Venkatesh Rao',
+      relation: 'spouse',
+      dob: new Date('1972-09-18'),
+      gender: 'male',
+    },
+    reason: 'Deceased — requesting removal from ration card',
+    certificateUrl: '/uploads/certificates/death_cert_003.pdf',
+    status: 'pending',
+  });
+
+  console.log('Created 3 family requests');
+
+  // --- Distributions (March 2026) ---
+  const distributionConfigs = [
+    { rcIdx: 0, verification: 'face' },
+    { rcIdx: 1, verification: 'aadhaar' },
+    { rcIdx: 3, verification: 'face' },
+    { rcIdx: 4, verification: 'manual' },
+    { rcIdx: 6, verification: 'aadhaar' },
+  ];
+
+  for (const dc of distributionConfigs) {
+    const rc = rationCards[dc.rcIdx];
+    const rules = ENTITLEMENT_RULES[rc.cardType];
+    const rates = COMMODITY_RATES[rc.cardType];
+    const memberCount = rc.familyMembers.length;
+
+    const commodities = COMMODITIES
+      .map((name) => {
+        const base = rules[name] || 0;
+        if (base === 0) return null;
+        const entitled = rules.perMember ? base * memberCount : base;
+        return {
+          name,
+          entitledQty: entitled,
+          distributedQty: entitled,
+          rate: rates[name],
+        };
+      })
+      .filter(Boolean);
+
+    const signaturePayload = `${rc.cardNumber}-2026-03-${dc.verification}`;
+    const digitalSignatureHash = crypto.createHash('sha256').update(signaturePayload).digest('hex');
+
+    await Distribution.create({
+      rationCardId: rc._id,
+      shopId: rc.assignedFPS,
+      month: 3,
+      year: 2026,
+      commodities,
+      distributedBy: rc.assignedFPS.equals(shop1._id) ? shopOwner1._id : shopOwner2._id,
+      verificationMethod: dc.verification,
+      digitalSignatureHash,
+      remarks: 'Monthly distribution completed',
+    });
+  }
+
+  console.log('Created 5 distributions for March 2026');
+
+  // --- Grievances ---
+  await Grievance.create({
+    userId: cardholders[0]._id,
+    type: 'quality',
+    description: 'Rice supplied at the FPS last week was of very poor quality — broken grains and foul smell. Please investigate and ensure quality standards are met.',
+    shopId: shop1._id,
+    status: 'open',
+    priority: 'medium',
+    timeline: [],
+  });
+
+  await Grievance.create({
+    userId: cardholders[2]._id,
+    type: 'quantity',
+    description: 'Received only 3 kg of rice instead of the entitled 5 kg per member. The shopkeeper claimed limited stock but I suspect diversion.',
+    shopId: shop2._id,
+    status: 'under_review',
+    priority: 'high',
+    assignedTo: admin._id,
+    timeline: [
+      {
+        status: 'under_review',
+        updatedBy: admin._id,
+        notes: 'Complaint received and assigned for investigation. Checking shop inventory records.',
+        timestamp: new Date('2026-03-25'),
+      },
+    ],
+  });
+
+  await Grievance.create({
+    userId: cardholders[4]._id,
+    type: 'denial',
+    description: 'I was denied ration distribution despite having a valid PHH card and Aadhaar. The shopkeeper refused service without explanation.',
+    shopId: shop2._id,
+    status: 'resolved',
+    priority: 'high',
+    assignedTo: admin._id,
+    resolution: 'Investigation confirmed the denial was due to a biometric device malfunction. Manual verification was allowed and ration has been distributed. Shopkeeper has been instructed to use fallback verification methods.',
+    resolvedAt: new Date('2026-03-22'),
+    timeline: [
+      {
+        status: 'under_review',
+        updatedBy: admin._id,
+        notes: 'Investigating denial report. Contacted FPS owner for clarification.',
+        timestamp: new Date('2026-03-18'),
+      },
+      {
+        status: 'resolved',
+        updatedBy: admin._id,
+        notes: 'Issue resolved — biometric device failure confirmed. Manual override applied and ration distributed.',
+        timestamp: new Date('2026-03-22'),
+      },
+    ],
+  });
+
+  await Grievance.create({
+    userId: cardholders[5]._id,
+    type: 'corruption',
+    description: 'The FPS dealer is demanding extra money (Rs 50) per visit for distributing ration. This has been happening for the past 3 months. Other beneficiaries can confirm.',
+    shopId: shop3._id,
+    status: 'escalated',
+    priority: 'critical',
+    assignedTo: sysadmin._id,
+    timeline: [],
+  });
+
+  console.log('Created 4 grievances');
+
+  // --- Allocations (March 2026) ---
+  const allocationBase = COMMODITIES.map((name) => ({
+    name,
+    allocatedQty: { Rice: 500, Wheat: 300, Sugar: 100, Kerosene: 200, Dal: 80, 'Palm Oil': 60 }[name],
+    rate: COMMODITY_RATES.PHH[name],
+  }));
+
+  // Shop 1 — fully received
+  await Allocation.create({
+    month: 3,
+    year: 2026,
+    district: 'Hyderabad',
+    shopId: shop1._id,
+    commodities: allocationBase.map((c) => ({ ...c, receivedQty: c.allocatedQty })),
+    status: 'received',
+    dispatchDate: new Date('2026-03-01'),
+    receiptDate: new Date('2026-03-03'),
+    receiptAcknowledgedBy: shopOwner1._id,
+    remarks: 'All commodities received in full',
+  });
+
+  // Shop 2 — partially received
+  await Allocation.create({
+    month: 3,
+    year: 2026,
+    district: 'Hyderabad',
+    shopId: shop2._id,
+    commodities: allocationBase.map((c) => ({
+      ...c,
+      receivedQty: ['Rice', 'Wheat', 'Sugar'].includes(c.name) ? c.allocatedQty : 0,
+    })),
+    status: 'partially_received',
+    dispatchDate: new Date('2026-03-02'),
+    receiptDate: new Date('2026-03-05'),
+    receiptAcknowledgedBy: shopOwner2._id,
+    remarks: 'Kerosene, Dal, and Palm Oil pending delivery',
+  });
+
+  // Shop 3 — planned (not yet dispatched)
+  await Allocation.create({
+    month: 3,
+    year: 2026,
+    district: 'Hyderabad',
+    shopId: shop3._id,
+    commodities: allocationBase.map((c) => ({ ...c, receivedQty: 0 })),
+    status: 'planned',
+    remarks: 'Awaiting dispatch from district warehouse',
+  });
+
+  console.log('Created 3 allocations for March 2026');
 
   // --- Print login credentials ---
   console.log('\n========================================');

@@ -27,11 +27,22 @@ const DistributionHistory = () => {
   const [records, setRecords] = useState<DistributionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/distributions/my-history')
-      .then(({ data }) => setRecords(data.distributions ?? data))
-      .catch(() => toast.error('Failed to load distribution history'))
+      .then(({ data }) => {
+        setRecords(data.distributions ?? data);
+        setErrorMessage(null);
+      })
+      .catch((err: any) => {
+        const msg = err.response?.data?.message;
+        if (msg) {
+          setErrorMessage(msg);
+        } else {
+          toast.error('Failed to load distribution history');
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -44,9 +55,25 @@ const DistributionHistory = () => {
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Distribution History</h1>
 
-      {records.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
-          No distribution records found.
+      {errorMessage ? (
+        <div className="bg-white rounded-xl shadow-sm p-8 text-center max-w-lg mx-auto">
+          <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">No Distribution History</h2>
+          <p className="text-gray-500 text-sm">
+            {errorMessage.toLowerCase().includes('not found')
+              ? 'No distribution history. Your ration card needs to be linked first.'
+              : errorMessage}
+          </p>
+        </div>
+      ) : records.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm p-8 text-center max-w-lg mx-auto">
+          <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">No Distributions Yet</h2>
+          <p className="text-gray-500 text-sm">No distribution records found for your ration card.</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">

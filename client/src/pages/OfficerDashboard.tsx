@@ -59,15 +59,41 @@ const OfficerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [expandedDistrict, setExpandedDistrict] = useState<string | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     api.get('/officer-dashboard/')
-      .then(({ data }) => setData(data))
-      .catch(() => toast.error('Failed to load officer dashboard'))
+      .then(({ data: d }) => {
+        setData({
+          totalRationCards: d.totalRationCards ?? 0,
+          distributionCoverage: d.distributionCoverage ?? 0,
+          pendingFamilyRequests: d.pendingFamilyRequests ?? 0,
+          openGrievances: d.openGrievances ?? 0,
+          cardsByType: d.cardsByType ?? [],
+          grievancesByType: d.grievancesByType ?? [],
+          allocationVsDistribution: d.allocationVsDistribution ?? [],
+          monthlyTrend: d.monthlyTrend ?? [],
+          districtData: d.districtData ?? [],
+        });
+        setError(null);
+      })
+      .catch((err: any) => {
+        const msg = err.response?.data?.message;
+        setError(msg || 'Failed to load officer dashboard');
+      })
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <LoadingSpinner message="Loading officer dashboard..." />;
-  if (!data) return <div className="text-center py-12 text-gray-500">Failed to load dashboard data.</div>;
+  if (!data) return (
+    <div className="bg-white rounded-xl shadow-sm p-8 text-center max-w-lg mx-auto">
+      <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+      <h2 className="text-lg font-semibold text-gray-700 mb-2">Unable to Load Dashboard</h2>
+      <p className="text-gray-500 text-sm">{error || 'Something went wrong. Please try again later.'}</p>
+    </div>
+  );
 
   const StatCard = ({ title, value, color, subtitle }: { title: string; value: string | number; color: string; subtitle?: string }) => (
     <div className={`bg-white rounded-xl shadow-sm border-l-4 ${color} p-6`}>
@@ -98,81 +124,97 @@ const OfficerDashboard = () => {
         {/* 1. Bar Chart: Cards by Type */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Cards by Type</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.cardsByType} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="type" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" name="Cards" radius={[4, 4, 0, 0]}>
-                {data.cardsByType.map((_entry, idx) => (
-                  <Cell key={`card-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {data.cardsByType.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.cardsByType} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="type" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="count" name="Cards" radius={[4, 4, 0, 0]}>
+                  {data.cardsByType.map((_entry, idx) => (
+                    <Cell key={`card-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">No card data available</div>
+          )}
         </div>
 
         {/* 2. Pie Chart: Grievances by Type */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Grievances by Type</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={data.grievancesByType}
-                dataKey="count"
-                nameKey="type"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label={renderPieLabel}
-              >
-                {data.grievancesByType.map((_entry, idx) => (
-                  <Cell key={`griev-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          {data.grievancesByType.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.grievancesByType}
+                  dataKey="count"
+                  nameKey="type"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label={renderPieLabel}
+                >
+                  {data.grievancesByType.map((_entry, idx) => (
+                    <Cell key={`griev-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">No grievance data available</div>
+          )}
         </div>
 
         {/* 3. Bar Chart: Allocation vs Distribution */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Allocation vs Distribution</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.allocationVsDistribution} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="commodity" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="allocated" name="Allocated" fill="#2563eb" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="distributed" name="Distributed" fill="#16a34a" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {data.allocationVsDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.allocationVsDistribution} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="commodity" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="allocated" name="Allocated" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="distributed" name="Distributed" fill="#16a34a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">No allocation data available</div>
+          )}
         </div>
 
         {/* 4. Line Chart: Monthly Distribution Trend */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Monthly Distribution Trend</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data.monthlyTrend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="distributions"
-                name="Distributions"
-                stroke="#2563eb"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {data.monthlyTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data.monthlyTrend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="distributions"
+                  name="Distributions"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">No trend data available</div>
+          )}
         </div>
       </div>
 
@@ -184,6 +226,9 @@ const OfficerDashboard = () => {
 
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
+          {data.districtData.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">No district data available yet.</div>
+          ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50">
@@ -230,11 +275,14 @@ const OfficerDashboard = () => {
               ))}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Mobile Cards */}
         <div className="md:hidden divide-y divide-gray-100">
-          {data.districtData.map((d) => (
+          {data.districtData.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">No district data available yet.</div>
+          ) : data.districtData.map((d) => (
             <div
               key={d.district}
               onClick={() => setExpandedDistrict(expandedDistrict === d.district ? null : d.district)}

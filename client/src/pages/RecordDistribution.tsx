@@ -35,6 +35,7 @@ const RecordDistribution = () => {
   const [verificationMethod, setVerificationMethod] = useState<string>('face');
   const [remarks, setRemarks] = useState('');
   const [result, setResult] = useState<DistributionResult | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   const checkEntitlement = async () => {
     if (!cardNumber.trim()) {
@@ -44,6 +45,7 @@ const RecordDistribution = () => {
     setLoading(true);
     setEntitlement(null);
     setResult(null);
+    setCheckError(null);
     try {
       const { data } = await api.get(`/distributions/check-entitlement/${cardNumber.trim()}`);
       setEntitlement(data);
@@ -53,7 +55,8 @@ const RecordDistribution = () => {
       });
       setDistributedQtys(qtys);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to check entitlement');
+      const msg = err.response?.data?.message || 'Failed to check entitlement';
+      setCheckError(msg);
     } finally {
       setLoading(false);
     }
@@ -108,7 +111,7 @@ const RecordDistribution = () => {
           <button
             onClick={checkEntitlement}
             disabled={loading}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition disabled:opacity-50"
+            className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition disabled:opacity-50"
           >
             {loading ? 'Checking...' : 'Check Entitlement'}
           </button>
@@ -116,6 +119,22 @@ const RecordDistribution = () => {
       </div>
 
       {loading && <LoadingSpinner message="Checking entitlement..." />}
+
+      {/* Check Error */}
+      {checkError && !loading && !entitlement && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border-l-4 border-red-400">
+          <div className="flex items-start gap-3">
+            <svg className="h-6 w-6 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-semibold text-red-800">Entitlement Check Failed</h3>
+              <p className="text-sm text-red-700 mt-1">{checkError}</p>
+              <p className="text-xs text-gray-500 mt-2">Please verify the ration card number and try again.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Entitlement Info */}
       {entitlement && !loading && (
@@ -212,7 +231,7 @@ const RecordDistribution = () => {
               <button
                 onClick={recordDistribution}
                 disabled={submitting}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium transition disabled:opacity-50"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium transition disabled:opacity-50"
               >
                 {submitting ? 'Recording...' : 'Record Distribution'}
               </button>

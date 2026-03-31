@@ -165,7 +165,7 @@ const AllocationManagement = () => {
         <h1 className="text-2xl font-bold text-gray-800">Allocation Management</h1>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-lg font-medium transition"
+          className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-lg font-medium transition"
         >
           {showForm ? 'Close Form' : 'Create Allocation'}
         </button>
@@ -256,7 +256,7 @@ const AllocationManagement = () => {
           )}
 
           <button onClick={handleSubmit} disabled={submitting}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg font-medium transition disabled:opacity-50">
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg font-medium transition disabled:opacity-50">
             {submitting ? 'Creating...' : bulkMode ? 'Bulk Create Allocation' : 'Create Allocation'}
           </button>
         </div>
@@ -292,44 +292,73 @@ const AllocationManagement = () => {
       {loading ? (
         <LoadingSpinner message="Loading allocations..." />
       ) : allocations.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
-          No allocations found for the selected period.
+        <div className="bg-white rounded-xl shadow-sm p-8 text-center max-w-lg mx-auto">
+          <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+          </svg>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">No Allocations Found</h2>
+          <p className="text-gray-500 text-sm">No allocations found for the selected period. You can create a new allocation using the button above.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Shop Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">District</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Commodities</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocations.map((alloc) => (
-                <tr key={alloc._id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{alloc.shopName}</td>
-                  <td className="px-4 py-3 text-gray-600">{alloc.district}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {alloc.commodities.map((c, idx) => (
-                        <span key={idx} className="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                          {c.name}: {c.allocatedQty}/{c.receivedQty}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(alloc.status)}`}>
-                      {alloc.status}
-                    </span>
-                  </td>
+        <>
+          {/* Desktop Table */}
+          <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Shop Name</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">District</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Commodities</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {allocations.map((alloc) => (
+                  <tr key={alloc._id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{alloc.shopName}</td>
+                    <td className="px-4 py-3 text-gray-600">{alloc.district}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {alloc.commodities.map((c, idx) => (
+                          <span key={idx} className="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                            {c.name}: {c.allocatedQty}/{c.receivedQty}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(alloc.status)}`}>
+                        {alloc.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-4">
+            {allocations.map((alloc) => (
+              <div key={alloc._id} className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-800">{alloc.shopName}</span>
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(alloc.status)}`}>
+                    {alloc.status}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500">{alloc.district}</p>
+                <div className="flex flex-wrap gap-1">
+                  {alloc.commodities.map((c, idx) => (
+                    <span key={idx} className="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                      {c.name}: {c.allocatedQty}/{c.receivedQty}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
