@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
@@ -21,10 +23,13 @@ import DemandPrediction from './pages/DemandPrediction';
 import FraudAlerts from './pages/FraudAlerts';
 import Notifications from './pages/Notifications';
 import NotFound from './pages/NotFound';
+import LandingPage from './pages/LandingPage';
 
 const App = () => {
   return (
     <ErrorBoundary>
+    <ThemeProvider>
+    <LanguageProvider>
     <AuthProvider>
       <BrowserRouter>
         <Toaster position="top-right" />
@@ -55,11 +60,13 @@ const App = () => {
             <Route path="/fraud-alerts" element={<ProtectedRoute roles={['admin', 'sysadmin']}><FraudAlerts /></ProtectedRoute>} />
           </Route>
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </LanguageProvider>
+    </ThemeProvider>
     </ErrorBoundary>
   );
 };

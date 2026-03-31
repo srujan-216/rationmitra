@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
@@ -132,12 +133,13 @@ const AdminDashboardQuick = () => {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   if (!user) return null;
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-1">Welcome, {user.name}</h1>
-      <p className="text-gray-500 mb-8">Role: <span className="capitalize font-medium text-primary-600">{user.role}</span></p>
+      <h1 className="text-2xl font-bold text-gray-800 mb-1">{t('welcome')}, {user.name}</h1>
+      <p className="text-gray-500 mb-8">{t('role')}: <span className="capitalize font-medium text-primary-600">{user.role}</span></p>
 
       {user.role === 'cardholder' && <CardholderDashboard />}
       {user.role === 'shopowner' && <ShopOwnerDashboard />}

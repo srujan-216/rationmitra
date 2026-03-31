@@ -29,14 +29,14 @@ const seed = async () => {
   ]);
   console.log('Cleared existing data');
 
-  const hashedPassword = await bcrypt.hash('password123', bcryptSaltRounds);
+  const plainPassword = 'password123';
 
   // --- Users ---
   const admin = await User.create({
     name: 'Admin User',
     email: 'admin@rationmitra.in',
     phone: '9000000001',
-    password: hashedPassword,
+    password: plainPassword,
     role: 'admin',
     isActive: true,
     aadharVerified: true,
@@ -46,7 +46,7 @@ const seed = async () => {
     name: 'System Admin',
     email: 'sysadmin@rationmitra.in',
     phone: '9000000002',
-    password: hashedPassword,
+    password: plainPassword,
     role: 'sysadmin',
     isActive: true,
     aadharVerified: true,
@@ -56,7 +56,7 @@ const seed = async () => {
     name: 'Ramesh Kumar',
     email: 'ramesh@rationmitra.in',
     phone: '9000000003',
-    password: hashedPassword,
+    password: plainPassword,
     role: 'shopowner',
     isActive: true,
     aadharVerified: true,
@@ -66,7 +66,7 @@ const seed = async () => {
     name: 'Suresh Patel',
     email: 'suresh@rationmitra.in',
     phone: '9000000004',
-    password: hashedPassword,
+    password: plainPassword,
     role: 'shopowner',
     isActive: true,
     aadharVerified: true,
@@ -84,7 +84,7 @@ const seed = async () => {
       name: cardholderNames[i],
       email: `user${i + 1}@rationmitra.in`,
       phone: `98765${String(i).padStart(5, '0')}`,
-      password: hashedPassword,
+      password: plainPassword,
       role: 'cardholder',
       rationCardNumber: `TS-${String(1000 + i)}`,
       isActive: true,

@@ -5,3 +5,106 @@
 body {
   @apply bg-gray-50 text-gray-900 antialiased;
 }
+
+/* Dark mode overrides */
+.dark body,
+.dark .bg-gray-50 {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+.dark .bg-white {
+  background-color: #1e293b;
+}
+
+.dark .text-gray-800,
+.dark .text-gray-900 {
+  color: #e2e8f0;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-700 {
+  color: #94a3b8;
+}
+
+.dark .text-gray-500 {
+  color: #64748b;
+}
+
+.dark .text-gray-400 {
+  color: #475569;
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: #1e293b;
+}
+
+.dark .bg-gray-200 {
+  background-color: #334155;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: #334155;
+}
+
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155;
+}
+
+.dark .shadow-sm,
+.dark .shadow-xl {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #475569;
+}
+
+.dark .bg-primary-50 {
+  background-color: #172554;
+}
+
+.dark .bg-green-50 {
+  background-color: #14532d;
+}
+
+.dark .bg-red-50 {
+  background-color: #450a0a;
+}
+
+.dark .bg-yellow-50,
+.dark .bg-accent-50 {
+  background-color: #451a03;
+}
+
+.dark .bg-blue-50 {
+  background-color: #172554;
+}
+
+.dark .rounded-2xl.shadow-xl {
+  background-color: #1e293b;
+}
+
+.dark table thead {
+  background-color: #0f172a;
+}
+
+.dark table tbody tr {
+  border-color: #334155;
+}
+
+.dark .ring-2 {
+  --tw-ring-opacity: 0.3;
+}

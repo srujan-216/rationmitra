@@ -1,9 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { useState } from 'react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -39,43 +43,55 @@ const Navbar = () => {
           {/* Desktop nav */}
           {user && (
             <div className="hidden md:flex items-center gap-5">
-              <NavLink to="/dashboard">Dashboard</NavLink>
+              <NavLink to="/dashboard">{t('dashboard')}</NavLink>
 
               {user.role === 'cardholder' && (
                 <>
-                  <NavLink to="/book-slot">Book Slot</NavLink>
-                  <NavLink to="/my-bookings">My Bookings</NavLink>
-                  <NavLink to="/face-enroll">Face ID</NavLink>
-                  <NavLink to="/submit-feedback">Feedback</NavLink>
+                  <NavLink to="/book-slot">{t('bookSlot')}</NavLink>
+                  <NavLink to="/my-bookings">{t('myBookings')}</NavLink>
+                  <NavLink to="/face-enroll">{t('faceEnroll')}</NavLink>
+                  <NavLink to="/submit-feedback">{t('feedback')}</NavLink>
                 </>
               )}
 
               {(user.role === 'shopowner' || user.role === 'admin') && (
                 <>
-                  <NavLink to="/queue-manage">Queue</NavLink>
-                  <NavLink to="/inventory">Inventory</NavLink>
-                  <NavLink to="/stock-forecast">Forecast</NavLink>
-                  <NavLink to="/face-verify">Verify</NavLink>
-                  <NavLink to="/demand-prediction">Predictions</NavLink>
-                  <NavLink to="/feedback-view">Feedback</NavLink>
+                  <NavLink to="/queue-manage">{t('queueManagement')}</NavLink>
+                  <NavLink to="/inventory">{t('inventory')}</NavLink>
+                  <NavLink to="/stock-forecast">{t('stockForecast')}</NavLink>
+                  <NavLink to="/face-verify">{t('faceVerify')}</NavLink>
+                  <NavLink to="/demand-prediction">{t('demandPrediction')}</NavLink>
+                  <NavLink to="/feedback-view">{t('feedback')}</NavLink>
                 </>
               )}
 
               {(user.role === 'admin' || user.role === 'sysadmin') && (
                 <>
-                  <NavLink to="/admin">Admin</NavLink>
-                  <NavLink to="/fraud-alerts">Alerts</NavLink>
+                  <NavLink to="/admin">{t('adminDashboard')}</NavLink>
+                  <NavLink to="/fraud-alerts">{t('fraudAlerts')}</NavLink>
                 </>
               )}
 
               <div className="flex items-center gap-3 ml-3 pl-3 border-l border-primary-500">
                 <Link to="/notifications" className="hover:text-primary-200 transition text-sm">
-                  Notifications
+                  {t('notifications')}
                 </Link>
+                <button
+                  onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+                  className="bg-primary-600 hover:bg-primary-500 px-2.5 py-1 rounded-full text-xs font-bold transition"
+                  title={t('language')}
+                >
+                  {language === 'en' ? '\u0939\u093F' : 'EN'}
+                </button>
+                <button onClick={toggleTheme}
+                  className="bg-primary-600 hover:bg-primary-500 px-2.5 py-1 rounded-full text-sm transition"
+                  title={theme === 'light' ? 'Dark mode' : 'Light mode'}>
+                  {theme === 'light' ? '\u263E' : '\u2600'}
+                </button>
                 <span className="text-sm text-primary-200">{user.name}</span>
                 <button onClick={handleLogout}
                   className="bg-primary-800 hover:bg-primary-900 px-3 py-1.5 rounded text-sm transition">
-                  Logout
+                  {t('logout')}
                 </button>
               </div>
             </div>
@@ -85,39 +101,49 @@ const Navbar = () => {
         {/* Mobile nav */}
         {user && mobileOpen && (
           <div className="md:hidden pb-4 space-y-2">
-            <NavLink to="/dashboard">Dashboard</NavLink>
+            <NavLink to="/dashboard">{t('dashboard')}</NavLink>
 
             {user.role === 'cardholder' && (
               <>
-                <NavLink to="/book-slot">Book Slot</NavLink>
-                <NavLink to="/my-bookings">My Bookings</NavLink>
-                <NavLink to="/face-enroll">Face ID</NavLink>
-                <NavLink to="/submit-feedback">Feedback</NavLink>
+                <NavLink to="/book-slot">{t('bookSlot')}</NavLink>
+                <NavLink to="/my-bookings">{t('myBookings')}</NavLink>
+                <NavLink to="/face-enroll">{t('faceEnroll')}</NavLink>
+                <NavLink to="/submit-feedback">{t('feedback')}</NavLink>
               </>
             )}
 
             {(user.role === 'shopowner' || user.role === 'admin') && (
               <>
-                <NavLink to="/queue-manage">Queue</NavLink>
-                <NavLink to="/inventory">Inventory</NavLink>
-                <NavLink to="/stock-forecast">Forecast</NavLink>
-                <NavLink to="/face-verify">Verify</NavLink>
-                <NavLink to="/demand-prediction">Predictions</NavLink>
-                <NavLink to="/feedback-view">Feedback</NavLink>
+                <NavLink to="/queue-manage">{t('queueManagement')}</NavLink>
+                <NavLink to="/inventory">{t('inventory')}</NavLink>
+                <NavLink to="/stock-forecast">{t('stockForecast')}</NavLink>
+                <NavLink to="/face-verify">{t('faceVerify')}</NavLink>
+                <NavLink to="/demand-prediction">{t('demandPrediction')}</NavLink>
+                <NavLink to="/feedback-view">{t('feedback')}</NavLink>
               </>
             )}
 
             {(user.role === 'admin' || user.role === 'sysadmin') && (
               <>
-                <NavLink to="/admin">Admin</NavLink>
-                <NavLink to="/fraud-alerts">Alerts</NavLink>
+                <NavLink to="/admin">{t('adminDashboard')}</NavLink>
+                <NavLink to="/fraud-alerts">{t('fraudAlerts')}</NavLink>
               </>
             )}
 
-            <NavLink to="/notifications">Notifications</NavLink>
+            <NavLink to="/notifications">{t('notifications')}</NavLink>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+                className="bg-primary-600 hover:bg-primary-500 px-3 py-1.5 rounded text-sm transition">
+                {language === 'en' ? '\u0939\u093F Hindi' : 'EN English'}
+              </button>
+              <button onClick={toggleTheme}
+                className="bg-primary-600 hover:bg-primary-500 px-3 py-1.5 rounded text-sm transition">
+                {theme === 'light' ? '\u263E Dark' : '\u2600 Light'}
+              </button>
+            </div>
             <button onClick={handleLogout}
               className="w-full text-left bg-primary-800 hover:bg-primary-900 px-3 py-1.5 rounded text-sm transition">
-              Logout ({user.name})
+              {t('logout')} ({user.name})
             </button>
           </div>
         )}
