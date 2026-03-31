@@ -1,0 +1,248 @@
+import { useState } from 'react';
+import api from '../api/axios';
+import toast from 'react-hot-toast';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+interface CommodityEntitlement {
+  commodityId: string;
+  name: string;
+  entitledQty: number;
+  rate: number;
+  unit: string;
+}
+
+interface EntitlementData {
+  cardNumber: string;
+  cardType: string;
+  headOfFamily: string;
+  activeMembers: number;
+  alreadyDistributed: boolean;
+  monthYear: string;
+  entitlements: CommodityEntitlement[];
+}
+
+interface DistributionResult {
+  digitalSignatureHash: string;
+  ticket: string;
+}
+
+const RecordDistribution = () => {
+  const [cardNumber, setCardNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [entitlement, setEntitlement] = useState<EntitlementData | null>(null);
+  const [distributedQtys, setDistributedQtys] = useState<Record<string, number>>({});
+  const [verificationMethod, setVerificationMethod] = useState<string>('face');
+  const [remarks, setRemarks] = useState('');
+  const [result, setResult] = useState<DistributionResult | null>(null);
+
+  const checkEntitlement = async () => {
+    if (!cardNumber.trim()) {
+      toast.error('Please enter a ration card number');
+      return;
+    }
+    setLoading(true);
+    setEntitlement(null);
+    setResult(null);
+    try {
+      const { data } = await api.get(`/distributions/check-entitlement/${cardNumber.trim()}`);
+      setEntitlement(data);
+      const qtys: Record<string, number> = {};
+      data.entitlements?.forEach((e: CommodityEntitlement) => {
+        qtys[e.commodityId] = e.entitledQty;
+      });
+      setDistributedQtys(qtys);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to check entitlement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQtyChange = (commodityId: string, value: number, max: number) => {
+    setDistributedQtys((prev) => ({
+      ...prev,
+      [commodityId]: Math.min(Math.max(0, value), max),
+    }));
+  };
+
+  const recordDistribution = async () => {
+    if (!entitlement) return;
+    setSubmitting(true);
+    try {
+      const commodities = entitlement.entitlements.map((e) => ({
+        commodityId: e.commodityId,
+        distributedQty: distributedQtys[e.commodityId] ?? 0,
+      }));
+      const { data } = await api.post('/distributions/record', {
+        cardNumber: entitlement.cardNumber,
+        commodities,
+        verificationMethod,
+        remarks,
+      });
+      setResult(data);
+      toast.success('Distribution recorded successfully');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to record distribution');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Record Distribution</h1>
+
+      {/* Search */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Ration Card Number</label>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && checkEntitlement()}
+            placeholder="Enter ration card number"
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+          />
+          <button
+            onClick={checkEntitlement}
+            disabled={loading}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition disabled:opacity-50"
+          >
+            {loading ? 'Checking...' : 'Check Entitlement'}
+          </button>
+        </div>
+      </div>
+
+      {loading && <LoadingSpinner message="Checking entitlement..." />}
+
+      {/* Entitlement Info */}
+      {entitlement && !loading && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div>
+              <p className="text-xs text-gray-500">Card Type</p>
+              <p className="text-lg font-semibold text-gray-800">{entitlement.cardType}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Head of Family</p>
+              <p className="text-lg font-semibold text-gray-800">{entitlement.headOfFamily}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Active Members</p>
+              <p className="text-lg font-semibold text-gray-800">{entitlement.activeMembers}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Month</p>
+              <p className="text-lg font-semibold text-gray-800">{entitlement.monthYear}</p>
+            </div>
+          </div>
+
+          {entitlement.alreadyDistributed ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-700 font-semibold text-lg">Already distributed for this month</p>
+            </div>
+          ) : (
+            <>
+              {/* Entitlements Table */}
+              <h2 className="text-lg font-semibold text-gray-800 mb-3">Monthly Entitlements</h2>
+              <div className="overflow-x-auto mb-6">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Commodity</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Entitled Qty</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Distributed Qty</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Rate</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entitlement.entitlements.map((item) => (
+                      <tr key={item.commodityId} className="border-t border-gray-100">
+                        <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.entitledQty}</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            min={0}
+                            max={item.entitledQty}
+                            value={distributedQtys[item.commodityId] ?? 0}
+                            onChange={(e) =>
+                              handleQtyChange(item.commodityId, Number(e.target.value), item.entitledQty)
+                            }
+                            className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">Rs. {item.rate}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Verification & Remarks */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Verification Method</label>
+                  <select
+                    value={verificationMethod}
+                    onChange={(e) => setVerificationMethod(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  >
+                    <option value="face">Face Recognition</option>
+                    <option value="aadhaar">Aadhaar Verification</option>
+                    <option value="manual">Manual Verification</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    rows={2}
+                    placeholder="Optional remarks..."
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={recordDistribution}
+                disabled={submitting}
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium transition disabled:opacity-50"
+              >
+                {submitting ? 'Recording...' : 'Record Distribution'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Success Result */}
+      {result && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-green-800 mb-3">Distribution Recorded Successfully</h2>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-gray-500">Digital Signature Hash</p>
+              <p className="font-mono text-sm bg-white rounded px-3 py-2 border border-green-200 break-all">
+                {result.digitalSignatureHash}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Ticket</p>
+              <p className="font-mono text-sm bg-white rounded px-3 py-2 border border-green-200">
+                {result.ticket}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RecordDistribution;

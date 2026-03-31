@@ -24,6 +24,18 @@ import FraudAlerts from './pages/FraudAlerts';
 import Notifications from './pages/Notifications';
 import NotFound from './pages/NotFound';
 import LandingPage from './pages/LandingPage';
+import MyRationCard from './pages/MyRationCard';
+import FamilyRequests from './pages/FamilyRequests';
+import RationCardManagement from './pages/RationCardManagement';
+import RecordDistribution from './pages/RecordDistribution';
+import DistributionHistory from './pages/DistributionHistory';
+import DigitalReceipt from './pages/DigitalReceipt';
+import FileGrievance from './pages/FileGrievance';
+import MyGrievances from './pages/MyGrievances';
+import GrievanceManagement from './pages/GrievanceManagement';
+import AllocationManagement from './pages/AllocationManagement';
+import ShopAllocation from './pages/ShopAllocation';
+import OfficerDashboard from './pages/OfficerDashboard';
 
 const App = () => {
   return (
@@ -46,6 +58,11 @@ const App = () => {
             <Route path="/my-bookings" element={<MyBookings />} />
             <Route path="/submit-feedback" element={<ProtectedRoute roles={['cardholder']}><SubmitFeedback /></ProtectedRoute>} />
             <Route path="/face-enroll" element={<FaceEnroll />} />
+            <Route path="/my-ration-card" element={<ProtectedRoute roles={['cardholder']}><MyRationCard /></ProtectedRoute>} />
+            <Route path="/distribution-history" element={<ProtectedRoute roles={['cardholder']}><DistributionHistory /></ProtectedRoute>} />
+            <Route path="/distribution-receipt/:id" element={<DigitalReceipt />} />
+            <Route path="/file-grievance" element={<ProtectedRoute roles={['cardholder']}><FileGrievance /></ProtectedRoute>} />
+            <Route path="/my-grievances" element={<ProtectedRoute roles={['cardholder']}><MyGrievances /></ProtectedRoute>} />
 
             {/* Shop owner routes */}
             <Route path="/queue-manage" element={<ProtectedRoute roles={['shopowner', 'admin', 'sysadmin']}><QueueManage /></ProtectedRoute>} />
@@ -54,10 +71,17 @@ const App = () => {
             <Route path="/feedback-view" element={<ProtectedRoute roles={['shopowner', 'admin', 'sysadmin']}><FeedbackView /></ProtectedRoute>} />
             <Route path="/face-verify" element={<ProtectedRoute roles={['shopowner', 'admin', 'sysadmin']}><FaceVerify /></ProtectedRoute>} />
             <Route path="/demand-prediction" element={<ProtectedRoute roles={['shopowner', 'admin', 'sysadmin']}><DemandPrediction /></ProtectedRoute>} />
+            <Route path="/record-distribution" element={<ProtectedRoute roles={['shopowner']}><RecordDistribution /></ProtectedRoute>} />
+            <Route path="/shop-allocation" element={<ProtectedRoute roles={['shopowner']}><ShopAllocation /></ProtectedRoute>} />
 
             {/* Admin routes */}
             <Route path="/admin" element={<ProtectedRoute roles={['admin', 'sysadmin']}><AdminDashboard /></ProtectedRoute>} />
             <Route path="/fraud-alerts" element={<ProtectedRoute roles={['admin', 'sysadmin']}><FraudAlerts /></ProtectedRoute>} />
+            <Route path="/ration-card-management" element={<ProtectedRoute roles={['admin', 'sysadmin']}><RationCardManagement /></ProtectedRoute>} />
+            <Route path="/family-requests" element={<ProtectedRoute roles={['admin', 'sysadmin']}><FamilyRequests /></ProtectedRoute>} />
+            <Route path="/grievance-management" element={<ProtectedRoute roles={['admin', 'sysadmin']}><GrievanceManagement /></ProtectedRoute>} />
+            <Route path="/allocation-management" element={<ProtectedRoute roles={['admin', 'sysadmin']}><AllocationManagement /></ProtectedRoute>} />
+            <Route path="/officer-dashboard" element={<ProtectedRoute roles={['admin', 'sysadmin']}><OfficerDashboard /></ProtectedRoute>} />
           </Route>
 
           <Route path="/" element={<LandingPage />} />

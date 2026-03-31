@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
@@ -21,6 +22,11 @@ const shopRoutes = require('./routes/shop');
 const faceRoutes = require('./routes/face');
 const mlRoutes = require('./routes/ml');
 const notificationRoutes = require('./routes/notification');
+const rationCardRoutes = require('./routes/rationCard');
+const distributionRoutes = require('./routes/distribution');
+const grievanceRoutes = require('./routes/grievance');
+const allocationRoutes = require('./routes/allocation');
+const officerDashboardRoutes = require('./routes/officerDashboard');
 
 const app = express();
 const server = http.createServer(app);
@@ -49,6 +55,14 @@ app.use('/api/shops', shopRoutes);
 app.use('/api/face', faceRoutes);
 app.use('/api/ml', mlRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/ration-cards', rationCardRoutes);
+app.use('/api/distributions', distributionRoutes);
+app.use('/api/grievances', grievanceRoutes);
+app.use('/api/allocations', allocationRoutes);
+app.use('/api/officer-dashboard', officerDashboardRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {
