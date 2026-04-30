@@ -21,6 +21,7 @@ const Distribution = require('../models/Distribution');
 const Grievance = require('../models/Grievance');
 const Allocation = require('../models/Allocation');
 const { CARD_TYPES, COMMODITIES, TELANGANA_DISTRICTS, ENTITLEMENT_RULES, COMMODITY_RATES } = require('../utils/telangana');
+const { TELANGANA_FPS_SHOPS } = require('../utils/telanganaShops');
 
 const seed = async () => {
   await mongoose.connect(mongoUri);
@@ -108,48 +109,39 @@ const seed = async () => {
 
   console.log(`Created ${2 + 2 + cardholders.length} users`);
 
-  // --- Shops ---
-  const shop1 = await Shop.create({
-    name: 'FPS Kukatpally - Ward 12',
-    code: 'FPS-HYD-012',
-    address: { street: 'KPHB Colony', city: 'Hyderabad', state: 'Telangana', pincode: '500072', coordinates: { lat: 17.4947, lng: 78.3996 } },
-    owner: shopOwner1._id,
-    operatingHours: { open: '08:00', close: '18:00' },
-    slotsPerDay: 5,
-    slotDurationMinutes: 120,
-    maxCapacityPerSlot: 30,
-    counters: 2,
-    rating: 4.2,
-    totalRatings: 15,
-  });
+  // --- Shops (real Telangana FPS dataset) ---
+  const allShops = [];
+  for (let i = 0; i < TELANGANA_FPS_SHOPS.length; i++) {
+    const s = TELANGANA_FPS_SHOPS[i];
+    // Rotate owner between shopOwner1 & shopOwner2; remaining shops have shopOwner1 as default
+    const owner = i % 2 === 0 ? shopOwner1._id : shopOwner2._id;
+    const doc = await Shop.create({
+      name: s.name,
+      code: s.code,
+      address: {
+        street: s.street,
+        city: s.city,
+        state: 'Telangana',
+        pincode: s.pincode,
+        coordinates: { lat: s.lat, lng: s.lng },
+      },
+      owner,
+      operatingHours: { open: '08:00', close: '18:00' },
+      slotsPerDay: 5,
+      slotDurationMinutes: 120,
+      maxCapacityPerSlot: 30 + (i % 3) * 10,
+      counters: 2 + (i % 2),
+      rating: Number((3.5 + Math.random() * 1.5).toFixed(1)),
+      totalRatings: Math.floor(Math.random() * 50) + 5,
+      isActive: true,
+    });
+    allShops.push(doc);
+  }
 
-  const shop2 = await Shop.create({
-    name: 'FPS Ameerpet - Ward 7',
-    code: 'FPS-HYD-007',
-    address: { street: 'SR Nagar', city: 'Hyderabad', state: 'Telangana', pincode: '500038', coordinates: { lat: 17.4375, lng: 78.4483 } },
-    owner: shopOwner2._id,
-    operatingHours: { open: '09:00', close: '19:00' },
-    slotsPerDay: 5,
-    slotDurationMinutes: 120,
-    maxCapacityPerSlot: 40,
-    counters: 3,
-    rating: 3.8,
-    totalRatings: 10,
-  });
-
-  const shop3 = await Shop.create({
-    name: 'FPS Secunderabad - Ward 3',
-    code: 'FPS-HYD-003',
-    address: { street: 'Trimulgherry', city: 'Secunderabad', state: 'Telangana', pincode: '500015', coordinates: { lat: 17.4660, lng: 78.5268 } },
-    owner: shopOwner1._id,
-    operatingHours: { open: '08:00', close: '17:00' },
-    slotsPerDay: 4,
-    slotDurationMinutes: 120,
-    maxCapacityPerSlot: 25,
-    counters: 2,
-    rating: 4.5,
-    totalRatings: 8,
-  });
+  // Shortcut references to first three shops (used by inventory/queues/allocations below)
+  const shop1 = allShops[0];
+  const shop2 = allShops[1];
+  const shop3 = allShops[2];
 
   // Assign shops to owners
   shopOwner1.shopAssignedTo = shop1._id;
@@ -157,13 +149,14 @@ const seed = async () => {
   await shopOwner1.save();
   await shopOwner2.save();
 
-  // Assign a shop to some cardholders
+  // Assign a shop to some cardholders — spread across first 10 shops for realism
   for (const ch of cardholders) {
-    ch.shopAssignedTo = [shop1._id, shop2._id, shop3._id][Math.floor(Math.random() * 3)];
+    const pickFrom = allShops.slice(0, Math.min(10, allShops.length));
+    ch.shopAssignedTo = pickFrom[Math.floor(Math.random() * pickFrom.length)]._id;
     await ch.save();
   }
 
-  console.log('Created 3 shops');
+  console.log(`Created ${allShops.length} shops across Telangana`);
 
   // --- Inventory ---
   const items = [
@@ -174,25 +167,35 @@ const seed = async () => {
     { name: 'Toor Dal', stock: 60, unit: 'kg', reorder: 30 },
   ];
 
-  for (const shop of [shop1, shop2, shop3]) {
+  // Seed inventory for ALL shops (bulk insert for performance)
+  const inventoryDocs = [];
+  for (const shop of allShops) {
     for (const item of items) {
       const stockVariation = Math.floor(Math.random() * 100) - 50;
       const currentStock = Math.max(10, item.stock + stockVariation);
       const history = [];
 
-      // Generate 30 days of stock history
-      for (let d = 30; d >= 1; d--) {
+      // 14 days of stock history (trimmed from 30 to keep seed fast across 60 shops)
+      for (let d = 14; d >= 1; d--) {
         const date = new Date();
         date.setDate(date.getDate() - d);
-        // Some inward
         if (d % 7 === 0) {
-          history.push({ timestamp: date, quantity: Math.floor(Math.random() * 100) + 50, transactionType: 'inward', remarks: 'Weekly supply' });
+          history.push({
+            timestamp: date,
+            quantity: Math.floor(Math.random() * 100) + 50,
+            transactionType: 'inward',
+            remarks: 'Weekly supply',
+          });
         }
-        // Daily outward
-        history.push({ timestamp: date, quantity: Math.floor(Math.random() * 20) + 5, transactionType: 'outward', remarks: 'Daily distribution' });
+        history.push({
+          timestamp: date,
+          quantity: Math.floor(Math.random() * 20) + 5,
+          transactionType: 'outward',
+          remarks: 'Daily distribution',
+        });
       }
 
-      await Inventory.create({
+      inventoryDocs.push({
         shopId: shop._id,
         itemName: item.name,
         currentStock,
@@ -205,14 +208,17 @@ const seed = async () => {
       });
     }
   }
-
-  console.log('Created inventory for all shops (5 items each)');
+  await Inventory.insertMany(inventoryDocs);
+  console.log(`Created inventory for ${allShops.length} shops (${inventoryDocs.length} item records)`);
 
   // --- Queues (today) ---
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  for (const shop of [shop1, shop2]) {
+  // Create queues for first 15 shops (realistic activity profile; demo doesn't need 60)
+  const queueShops = allShops.slice(0, 15);
+  const queueDocs = [];
+  for (const shop of queueShops) {
     const slots = [
       { slotId: 'SLOT-1', startTime: '08:00', endTime: '10:00' },
       { slotId: 'SLOT-2', startTime: '10:00', endTime: '12:00' },
@@ -228,7 +234,7 @@ const seed = async () => {
         entries.push({
           userId: cardholders[i]._id,
           userName: cardholders[i].name,
-          ticketNumber: `T${Date.now().toString(36).toUpperCase()}${i}`,
+          ticketNumber: `T${Date.now().toString(36).toUpperCase()}${i}${shop._id.toString().slice(-3)}`,
           status,
           joinedAt: new Date(today.getTime() + i * 600000),
           servedAt: status !== 'waiting' ? new Date(today.getTime() + (i + 1) * 600000) : undefined,
@@ -237,7 +243,7 @@ const seed = async () => {
         });
       }
 
-      await Queue.create({
+      queueDocs.push({
         shopId: shop._id,
         date: today,
         slot: { ...slotConfig, capacity: shop.maxCapacityPerSlot, currentCount: entries.length },
@@ -245,8 +251,8 @@ const seed = async () => {
       });
     }
   }
-
-  console.log('Created queue entries for today');
+  await Queue.insertMany(queueDocs);
+  console.log(`Created queue entries for ${queueShops.length} shops (today)`);
 
   // --- Feedback ---
   const feedbackTexts = [
@@ -579,49 +585,56 @@ const seed = async () => {
     rate: COMMODITY_RATES.PHH[name],
   }));
 
-  // Shop 1 — fully received
-  await Allocation.create({
-    month: 3,
-    year: 2026,
-    district: 'Hyderabad',
-    shopId: shop1._id,
-    commodities: allocationBase.map((c) => ({ ...c, receivedQty: c.allocatedQty })),
-    status: 'received',
-    dispatchDate: new Date('2026-03-01'),
-    receiptDate: new Date('2026-03-03'),
-    receiptAcknowledgedBy: shopOwner1._id,
-    remarks: 'All commodities received in full',
-  });
+  // Allocations for ALL shops — mix of statuses for realistic analytics
+  const allocationDocs = [];
+  for (let i = 0; i < allShops.length; i++) {
+    const shop = allShops[i];
+    // Status distribution: ~60% received, ~25% partially_received, ~10% dispatched, ~5% planned
+    let status, commodities, dispatchDate, receiptDate, receiptAcknowledgedBy, remarks;
+    const roll = Math.random();
+    if (roll < 0.60) {
+      status = 'received';
+      commodities = allocationBase.map((c) => ({ ...c, receivedQty: c.allocatedQty }));
+      dispatchDate = new Date('2026-03-01');
+      receiptDate = new Date('2026-03-03');
+      receiptAcknowledgedBy = shop.owner;
+      remarks = 'All commodities received in full';
+    } else if (roll < 0.85) {
+      status = 'partially_received';
+      commodities = allocationBase.map((c) => ({
+        ...c,
+        receivedQty: ['Rice', 'Wheat', 'Sugar'].includes(c.name) ? c.allocatedQty : 0,
+      }));
+      dispatchDate = new Date('2026-03-02');
+      receiptDate = new Date('2026-03-05');
+      receiptAcknowledgedBy = shop.owner;
+      remarks = 'Kerosene, Dal, and Palm Oil pending delivery';
+    } else if (roll < 0.95) {
+      status = 'dispatched';
+      commodities = allocationBase.map((c) => ({ ...c, receivedQty: 0 }));
+      dispatchDate = new Date('2026-03-04');
+      remarks = 'In transit from district warehouse';
+    } else {
+      status = 'planned';
+      commodities = allocationBase.map((c) => ({ ...c, receivedQty: 0 }));
+      remarks = 'Awaiting dispatch from district warehouse';
+    }
 
-  // Shop 2 — partially received
-  await Allocation.create({
-    month: 3,
-    year: 2026,
-    district: 'Hyderabad',
-    shopId: shop2._id,
-    commodities: allocationBase.map((c) => ({
-      ...c,
-      receivedQty: ['Rice', 'Wheat', 'Sugar'].includes(c.name) ? c.allocatedQty : 0,
-    })),
-    status: 'partially_received',
-    dispatchDate: new Date('2026-03-02'),
-    receiptDate: new Date('2026-03-05'),
-    receiptAcknowledgedBy: shopOwner2._id,
-    remarks: 'Kerosene, Dal, and Palm Oil pending delivery',
-  });
-
-  // Shop 3 — planned (not yet dispatched)
-  await Allocation.create({
-    month: 3,
-    year: 2026,
-    district: 'Hyderabad',
-    shopId: shop3._id,
-    commodities: allocationBase.map((c) => ({ ...c, receivedQty: 0 })),
-    status: 'planned',
-    remarks: 'Awaiting dispatch from district warehouse',
-  });
-
-  console.log('Created 3 allocations for March 2026');
+    allocationDocs.push({
+      month: 3,
+      year: 2026,
+      district: shop.address.city === 'Hyderabad' || shop.address.city === 'Secunderabad' ? 'Hyderabad' : shop.address.city,
+      shopId: shop._id,
+      commodities,
+      status,
+      dispatchDate,
+      receiptDate,
+      receiptAcknowledgedBy,
+      remarks,
+    });
+  }
+  await Allocation.insertMany(allocationDocs);
+  console.log(`Created ${allocationDocs.length} allocations for March 2026`);
 
   // --- Print login credentials ---
   console.log('\n========================================');

@@ -8,5 +8,6 @@ router.get('/fraud-alerts', authenticate, authorize('admin', 'sysadmin'), analyt
 router.put('/fraud-alerts/:id', authenticate, authorize('admin', 'sysadmin'), analyticsController.updateFraudAlert);
 router.get('/audit-logs', authenticate, authorize('sysadmin'), analyticsController.getAuditLogs);
 router.get('/shop-performance', authenticate, authorize('admin', 'sysadmin'), analyticsController.getShopPerformance);
+router.get('/shop-dashboard/:shopId', authenticate, authorize('shopowner', 'admin', 'sysadmin'), analyticsController.getShopOwnerDashboard);
 
 module.exports = router;

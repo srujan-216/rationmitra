@@ -35,6 +35,8 @@ services:
       - '5173:5173'
     depends_on:
       - server
+    environment:
+      - VITE_PROXY_TARGET=http://server:5000
     volumes:
       - ./client/src:/app/src
 

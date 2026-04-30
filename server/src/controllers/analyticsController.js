@@ -5,6 +5,8 @@ const Inventory = require('../models/Inventory');
 const Feedback = require('../models/Feedback');
 const FraudAlert = require('../models/FraudAlert');
 const AuditLog = require('../models/AuditLog');
+const Allocation = require('../models/Allocation');
+const Distribution = require('../models/Distribution');
 
 exports.getDashboard = async (req, res, next) => {
   try {
@@ -98,6 +100,140 @@ exports.getAuditLogs = async (req, res, next) => {
       .populate('userId', 'name email role');
     const total = await AuditLog.countDocuments();
     res.json({ logs, total, page: Number(page), totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Shop-owner dashboard — all metrics for a single shop.
+ * Accepts :shopId param. Shop owners can only access their own shop (guard added in route).
+ */
+exports.getShopOwnerDashboard = async (req, res, next) => {
+  try {
+    const { shopId } = req.params;
+
+    // Authorization: shop owners can only see their own shop.
+    // Admins and sysadmins can see any shop.
+    if (req.user.role === 'shopowner') {
+      if (!req.user.shopAssignedTo || String(req.user.shopAssignedTo) !== String(shopId)) {
+        return res.status(403).json({ message: 'You can only view your own shop dashboard' });
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+
+    const [shop, todayQueues, inventory, allocation, monthlyDistributions, recentFeedbacks] = await Promise.all([
+      Shop.findById(shopId).select('name code address rating totalRatings maxCapacityPerSlot'),
+      Queue.find({ shopId, date: today }),
+      Inventory.find({ shopId }),
+      Allocation.findOne({ shopId, month, year }),
+      Distribution.find({ shopId, month, year }),
+      Feedback.find({ shopId }).sort({ createdAt: -1 }).limit(5),
+    ]);
+
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+
+    // ── Today's queue metrics ──
+    let totalBookings = 0;
+    let waiting = 0;
+    let inService = 0;
+    let completed = 0;
+    let noShow = 0;
+    let totalServiceTime = 0;
+    let servedWithTime = 0;
+
+    todayQueues.forEach((q) => {
+      q.queueEntries.forEach((e) => {
+        totalBookings++;
+        if (e.status === 'waiting') waiting++;
+        else if (e.status === 'in_service') inService++;
+        else if (e.status === 'completed') {
+          completed++;
+          if (e.serviceTime) {
+            totalServiceTime += e.serviceTime;
+            servedWithTime++;
+          }
+        } else if (e.status === 'no_show') noShow++;
+      });
+    });
+
+    const avgServiceTime = servedWithTime > 0 ? Math.round(totalServiceTime / servedWithTime) : 0;
+    const capacityUsed = todayQueues.length > 0
+      ? Math.round((totalBookings / (todayQueues.length * shop.maxCapacityPerSlot)) * 100)
+      : 0;
+
+    // ── Inventory summary ──
+    const lowStockItems = inventory.filter((i) => i.isLowStock);
+    const totalCurrentStock = inventory.reduce((sum, i) => sum + i.currentStock, 0);
+    const inventorySummary = inventory.map((i) => ({
+      itemName: i.itemName,
+      currentStock: i.currentStock,
+      unit: i.unit,
+      reorderLevel: i.reorderLevel,
+      isLowStock: i.isLowStock,
+      fillPercent: i.reorderLevel > 0
+        ? Math.min(100, Math.round((i.currentStock / (i.reorderLevel * 5)) * 100))
+        : 100,
+    }));
+
+    // ── Allocation summary for current month ──
+    let allocationStatus = null;
+    if (allocation) {
+      const totalAllocated = allocation.commodities.reduce((s, c) => s + (c.allocatedQty || 0), 0);
+      const totalReceived = allocation.commodities.reduce((s, c) => s + (c.receivedQty || 0), 0);
+      allocationStatus = {
+        status: allocation.status,
+        dispatchDate: allocation.dispatchDate,
+        receiptDate: allocation.receiptDate,
+        totalAllocated,
+        totalReceived,
+        percentReceived: totalAllocated > 0 ? Math.round((totalReceived / totalAllocated) * 100) : 0,
+        commodities: allocation.commodities,
+      };
+    }
+
+    // ── Monthly distribution (unique families served this month) ──
+    const uniqueFamiliesServed = new Set(monthlyDistributions.map((d) => String(d.rationCardId))).size;
+    const totalRevenue = monthlyDistributions.reduce((sum, d) => {
+      return sum + d.commodities.reduce((cSum, c) => cSum + (c.distributedQty || 0) * (c.rate || 0), 0);
+    }, 0);
+
+    res.json({
+      shop: {
+        _id: shop._id,
+        name: shop.name,
+        code: shop.code,
+        address: shop.address,
+        rating: shop.rating,
+        totalRatings: shop.totalRatings,
+      },
+      today: {
+        totalBookings,
+        waiting,
+        inService,
+        completed,
+        noShow,
+        avgServiceTime,
+        capacityUsed,
+      },
+      inventory: {
+        itemCount: inventory.length,
+        lowStockCount: lowStockItems.length,
+        totalCurrentStock,
+        items: inventorySummary,
+      },
+      allocation: allocationStatus,
+      month: {
+        distributionsCount: monthlyDistributions.length,
+        uniqueFamiliesServed,
+        totalRevenue: Math.round(totalRevenue),
+      },
+      recentFeedbacks,
+    });
   } catch (error) {
     next(error);
   }
