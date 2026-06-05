@@ -1,81 +1,83 @@
 import re
-from collections import Counter
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+nltk.download('vader_lexicon', quiet=True)
 
 
 class SentimentAnalyzer:
-    """Rule-based + keyword sentiment analyzer for Hindi+English feedback.
-    Can be replaced with BERT/DistilBERT model after training data is collected."""
+    """
+    VADER (Valence Aware Dictionary and sEntiment Reasoner) for English,
+    extended with a Hindi lexicon injected directly into VADER's internal
+    word-valence dictionary so the same scoring pipeline handles both languages.
 
-    POSITIVE_WORDS = {
-        'good', 'great', 'excellent', 'nice', 'fast', 'quick', 'clean', 'helpful',
-        'friendly', 'polite', 'satisfied', 'happy', 'amazing', 'best', 'wonderful',
-        'perfect', 'awesome', 'efficient', 'smooth', 'fresh', 'quality', 'timely',
-        'accha', 'bahut', 'achha', 'sahi', 'badiya', 'shandar', 'sundar', 'dhanyawad',
-        'theek', 'mast',
-    }
+    VADER reference: Hutto & Gilbert, ICWSM 2014.
+    """
 
-    NEGATIVE_WORDS = {
-        'bad', 'worst', 'terrible', 'slow', 'dirty', 'rude', 'poor', 'horrible',
-        'waste', 'delay', 'long', 'queue', 'wait', 'expired', 'stale', 'fraud',
-        'cheat', 'corrupt', 'unhygienic', 'closed', 'unavailable', 'shortage',
-        'kharab', 'bura', 'ganda', 'dhoka', 'problem', 'pareshani', 'galat',
-        'bekaar', 'wahiyat',
+    # Hindi valence scores on VADER's scale (-4 to +4)
+    HINDI_LEXICON = {
+        # Positive
+        'accha': 2.0, 'achha': 2.0, 'sahi': 1.5, 'badiya': 2.5,
+        'shandar': 3.0, 'sundar': 2.0, 'dhanyawad': 1.5, 'theek': 1.0,
+        'mast': 2.0, 'khush': 2.5, 'badhiya': 2.5, 'zabardast': 3.0,
+        'lajawaab': 3.0, 'shukriya': 1.5, 'acha': 2.0,
+        # Negative
+        'kharab': -2.5, 'bura': -2.0, 'buri': -2.0, 'ganda': -2.0,
+        'dhoka': -3.0, 'pareshani': -2.0, 'galat': -1.5, 'bekaar': -2.5,
+        'wahiyat': -2.5, 'kami': -1.5, 'takleef': -2.0, 'bura': -2.0,
+        'nuksaan': -1.5, 'shikayat': -1.5,
     }
 
     TOPIC_KEYWORDS = {
-        'staff behavior': ['staff', 'rude', 'polite', 'helpful', 'friendly', 'behavior', 'attitude', 'karmchari'],
-        'queue time': ['queue', 'wait', 'line', 'time', 'slow', 'fast', 'quick', 'delay', 'intezaar'],
-        'product quality': ['quality', 'fresh', 'stale', 'expired', 'good', 'bad', 'rice', 'wheat', 'oil', 'sugar'],
-        'hygiene': ['clean', 'dirty', 'hygiene', 'hygienic', 'unhygienic', 'safai', 'ganda'],
-        'availability': ['available', 'unavailable', 'shortage', 'stock', 'out', 'empty', 'nahi', 'khatam'],
+        'staff behavior': ['staff', 'rude', 'polite', 'helpful', 'friendly',
+                           'behavior', 'attitude', 'karmchari'],
+        'queue time': ['queue', 'wait', 'line', 'time', 'slow', 'fast',
+                       'quick', 'delay', 'intezaar'],
+        'product quality': ['quality', 'fresh', 'stale', 'expired', 'rice',
+                            'wheat', 'oil', 'sugar', 'dal'],
+        'hygiene': ['clean', 'dirty', 'hygiene', 'hygienic', 'unhygienic',
+                    'safai', 'ganda'],
+        'availability': ['available', 'unavailable', 'shortage', 'stock',
+                         'empty', 'nahi', 'khatam'],
     }
 
+    def __init__(self):
+        self.vader = SentimentIntensityAnalyzer()
+        self.vader.lexicon.update(self.HINDI_LEXICON)
+
     def analyze(self, text):
-        """Analyze sentiment of a feedback text."""
         if not text:
-            return {'sentiment': 'neutral', 'sentimentScore': 0, 'topics': [], 'confidence': 0.5}
+            return {'sentiment': 'neutral', 'sentimentScore': 0.0,
+                    'topics': [], 'confidence': 0.5}
 
-        text_lower = text.lower()
-        words = set(re.findall(r'\b\w+\b', text_lower))
+        scores = self.vader.polarity_scores(text)
+        compound = scores['compound']  # range: -1.0 to +1.0
 
-        pos_count = len(words & self.POSITIVE_WORDS)
-        neg_count = len(words & self.NEGATIVE_WORDS)
-        total = pos_count + neg_count
-
-        if total == 0:
-            sentiment = 'neutral'
-            score = 0.0
-            confidence = 0.3
-        elif pos_count > neg_count:
+        if compound >= 0.05:
             sentiment = 'positive'
-            score = min(1.0, pos_count / max(total, 1))
-            confidence = min(0.95, 0.5 + (pos_count - neg_count) * 0.1)
-        elif neg_count > pos_count:
+        elif compound <= -0.05:
             sentiment = 'negative'
-            score = max(-1.0, -neg_count / max(total, 1))
-            confidence = min(0.95, 0.5 + (neg_count - pos_count) * 0.1)
         else:
             sentiment = 'neutral'
-            score = 0.0
-            confidence = 0.4
 
-        # Extract topics
-        topics = []
-        for topic, keywords in self.TOPIC_KEYWORDS.items():
-            if any(kw in text_lower for kw in keywords):
-                topics.append(topic)
+        # Confidence: distance from the neutral boundary
+        confidence = round(min(0.95, 0.5 + abs(compound) * 0.5), 3)
+
+        text_lower = text.lower()
+        topics = [
+            topic for topic, kws in self.TOPIC_KEYWORDS.items()
+            if any(kw in text_lower for kw in kws)
+        ]
 
         return {
             'sentiment': sentiment,
-            'sentimentScore': round(score, 3),
+            'sentimentScore': round(compound, 3),
             'topics': topics,
-            'confidence': round(confidence, 3),
+            'confidence': confidence,
         }
 
     def batch_analyze(self, texts):
-        """Analyze a batch of feedback texts."""
         return [self.analyze(t) for t in texts]
 
 
-# Singleton
 analyzer = SentimentAnalyzer()

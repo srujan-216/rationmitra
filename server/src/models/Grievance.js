@@ -43,6 +43,7 @@ const grievanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    dueDate: { type: Date },
     resolution: { type: String },
     timeline: [timelineEntrySchema],
     resolvedAt: { type: Date },

@@ -95,6 +95,17 @@ exports.bookSlot = async (req, res, next) => {
     queue.slot.currentCount += 1;
     await queue.save();
 
+    // Emit real-time event so QueueManage updates instantly
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`shop:${shopId}`).emit('queue:new-booking', {
+        ticketNumber,
+        shopId,
+        position: queue.slot.currentCount,
+        slotId,
+      });
+    }
+
     // Send booking confirmation notification
     notifySlotBooked(req.user._id, ticketNumber, `${slotConfig.startTime}-${slotConfig.endTime}`).catch(() => {});
 

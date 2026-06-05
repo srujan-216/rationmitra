@@ -45,6 +45,11 @@ const seed = async () => {
 
   const plainPassword = 'password123';
 
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const monthStr = String(currentMonth).padStart(2, '0');
+
   // --- Users ---
   const admin = await User.create({
     name: 'Admin User',
@@ -492,14 +497,14 @@ const seed = async () => {
       })
       .filter(Boolean);
 
-    const signaturePayload = `${rc.cardNumber}-2026-03-${dc.verification}`;
+    const signaturePayload = `${rc.cardNumber}-${currentYear}-${monthStr}-${dc.verification}`;
     const digitalSignatureHash = crypto.createHash('sha256').update(signaturePayload).digest('hex');
 
     await Distribution.create({
       rationCardId: rc._id,
       shopId: rc.assignedFPS,
-      month: 3,
-      year: 2026,
+      month: currentMonth,
+      year: currentYear,
       commodities,
       distributedBy: rc.assignedFPS.equals(shop1._id) ? shopOwner1._id : shopOwner2._id,
       verificationMethod: dc.verification,
@@ -508,9 +513,16 @@ const seed = async () => {
     });
   }
 
-  console.log('Created 5 distributions for March 2026');
+  console.log(`Created 5 distributions for ${monthStr}/${currentYear}`);
 
   // --- Grievances ---
+  const slaDay = (priority, daysAgo = 0) => {
+    const SLA = { critical: 3, high: 7, medium: 15, low: 30 };
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo + SLA[priority]);
+    return d;
+  };
+
   await Grievance.create({
     userId: cardholders[0]._id,
     type: 'quality',
@@ -518,6 +530,7 @@ const seed = async () => {
     shopId: shop1._id,
     status: 'open',
     priority: 'medium',
+    dueDate: slaDay('medium', 3),
     timeline: [],
   });
 
@@ -528,6 +541,7 @@ const seed = async () => {
     shopId: shop2._id,
     status: 'under_review',
     priority: 'high',
+    dueDate: slaDay('high', 8),
     assignedTo: admin._id,
     timeline: [
       {
@@ -546,6 +560,7 @@ const seed = async () => {
     shopId: shop2._id,
     status: 'resolved',
     priority: 'high',
+    dueDate: slaDay('high', 20),
     assignedTo: admin._id,
     resolution: 'Investigation confirmed the denial was due to a biometric device malfunction. Manual verification was allowed and ration has been distributed. Shopkeeper has been instructed to use fallback verification methods.',
     resolvedAt: new Date('2026-03-22'),
@@ -572,6 +587,7 @@ const seed = async () => {
     shopId: shop3._id,
     status: 'escalated',
     priority: 'critical',
+    dueDate: slaDay('critical', 5),
     assignedTo: sysadmin._id,
     timeline: [],
   });
@@ -595,8 +611,8 @@ const seed = async () => {
     if (roll < 0.60) {
       status = 'received';
       commodities = allocationBase.map((c) => ({ ...c, receivedQty: c.allocatedQty }));
-      dispatchDate = new Date('2026-03-01');
-      receiptDate = new Date('2026-03-03');
+      dispatchDate = new Date(currentYear, currentMonth - 1, 1);
+      receiptDate = new Date(currentYear, currentMonth - 1, 3);
       receiptAcknowledgedBy = shop.owner;
       remarks = 'All commodities received in full';
     } else if (roll < 0.85) {
@@ -605,14 +621,14 @@ const seed = async () => {
         ...c,
         receivedQty: ['Rice', 'Wheat', 'Sugar'].includes(c.name) ? c.allocatedQty : 0,
       }));
-      dispatchDate = new Date('2026-03-02');
-      receiptDate = new Date('2026-03-05');
+      dispatchDate = new Date(currentYear, currentMonth - 1, 2);
+      receiptDate = new Date(currentYear, currentMonth - 1, 5);
       receiptAcknowledgedBy = shop.owner;
       remarks = 'Kerosene, Dal, and Palm Oil pending delivery';
     } else if (roll < 0.95) {
       status = 'dispatched';
       commodities = allocationBase.map((c) => ({ ...c, receivedQty: 0 }));
-      dispatchDate = new Date('2026-03-04');
+      dispatchDate = new Date(currentYear, currentMonth - 1, 4);
       remarks = 'In transit from district warehouse';
     } else {
       status = 'planned';
@@ -621,8 +637,8 @@ const seed = async () => {
     }
 
     allocationDocs.push({
-      month: 3,
-      year: 2026,
+      month: currentMonth,
+      year: currentYear,
       district: shop.address.city === 'Hyderabad' || shop.address.city === 'Secunderabad' ? 'Hyderabad' : shop.address.city,
       shopId: shop._id,
       commodities,
@@ -634,7 +650,7 @@ const seed = async () => {
     });
   }
   await Allocation.insertMany(allocationDocs);
-  console.log(`Created ${allocationDocs.length} allocations for March 2026`);
+  console.log(`Created ${allocationDocs.length} allocations for ${monthStr}/${currentYear}`);
 
   // --- Print login credentials ---
   console.log('\n========================================');

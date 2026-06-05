@@ -23,11 +23,10 @@ interface Grievance {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  'in-progress': 'bg-blue-100 text-blue-800',
+  open: 'bg-yellow-100 text-yellow-800',
+  under_review: 'bg-blue-100 text-blue-800',
   resolved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  closed: 'bg-gray-100 text-gray-600',
+  escalated: 'bg-red-100 text-red-800',
 };
 
 const PRIORITY_COLORS: Record<string, string> = {

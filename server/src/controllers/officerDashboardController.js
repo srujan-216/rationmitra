@@ -9,14 +9,20 @@ exports.getOfficerDashboard = async (req, res, next) => {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
+    const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     const [
-      cardsByType,
+      cardsByTypeRaw,
       totalCards,
       distributionsThisMonth,
       pendingFamilyRequests,
-      grievancesByStatus,
-      allocationSummary,
+      grievancesByStatusRaw,
+      grievancesByTypeRaw,
+      monthlyTrendRaw,
+      districtCardsRaw,
+      districtDistribRaw,
+      allocationRaw,
+      distributionRaw,
     ] = await Promise.all([
       RationCard.aggregate([
         { $match: { isActive: true } },
@@ -25,36 +31,102 @@ exports.getOfficerDashboard = async (req, res, next) => {
       RationCard.countDocuments({ isActive: true }),
       Distribution.countDocuments({ month, year }),
       FamilyRequest.countDocuments({ status: 'pending' }),
-      Grievance.aggregate([
-        { $group: { _id: '$status', count: { $sum: 1 } } },
+      Grievance.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Grievance.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+      Distribution.aggregate([
+        { $group: { _id: { month: '$month', year: '$year' }, count: { $sum: 1 } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+        { $limit: 12 },
+      ]),
+      RationCard.aggregate([
+        { $match: { isActive: true } },
+        { $group: { _id: '$district', totalCards: { $sum: 1 } } },
+      ]),
+      Distribution.aggregate([
+        { $match: { month, year } },
+        {
+          $lookup: {
+            from: 'rationcards',
+            localField: 'rationCardId',
+            foreignField: '_id',
+            as: 'card',
+          },
+        },
+        { $unwind: '$card' },
+        { $group: { _id: '$card.district', distributed: { $sum: 1 } } },
       ]),
       Allocation.aggregate([
         { $match: { month, year } },
         { $unwind: '$commodities' },
         {
           $group: {
-            _id: null,
-            totalAllocated: { $sum: '$commodities.allocatedQty' },
-            totalReceived: { $sum: { $ifNull: ['$commodities.receivedQty', 0] } },
+            _id: '$commodities.name',
+            allocated: { $sum: '$commodities.allocatedQty' },
+            received: { $sum: { $ifNull: ['$commodities.receivedQty', 0] } },
           },
         },
       ]),
+      Distribution.aggregate([
+        { $match: { month, year } },
+        { $unwind: '$commodities' },
+        { $group: { _id: '$commodities.name', distributed: { $sum: '$commodities.distributedQty' } } },
+      ]),
     ]);
 
-    const distributionCoverage =
-      totalCards > 0
-        ? Math.round((distributionsThisMonth / totalCards) * 100 * 10) / 10
-        : 0;
+    const distributionCoverage = totalCards > 0
+      ? Math.round((distributionsThisMonth / totalCards) * 100 * 10) / 10 : 0;
+
+    const openGrievances = grievancesByStatusRaw.find((g) => g._id === 'open')?.count ?? 0;
+
+    const cardsByType = cardsByTypeRaw.map((b) => ({ type: b._id, count: b.count }));
+    const grievancesByType = grievancesByTypeRaw.map((b) => ({ type: b._id, count: b.count }));
+
+    const monthlyTrend = monthlyTrendRaw.map((m) => ({
+      month: `${MONTH_NAMES[m._id.month - 1]} ${m._id.year}`,
+      distributions: m.count,
+    }));
+
+    const allocationMap = {};
+    for (const a of allocationRaw) {
+      allocationMap[a._id] = { commodity: a._id, allocated: a.allocated, distributed: 0 };
+    }
+    for (const d of distributionRaw) {
+      if (allocationMap[d._id]) {
+        allocationMap[d._id].distributed = d.distributed;
+      } else {
+        allocationMap[d._id] = { commodity: d._id, allocated: 0, distributed: d.distributed };
+      }
+    }
+    const allocationVsDistribution = Object.values(allocationMap);
+
+    const distribMap = {};
+    for (const d of districtDistribRaw) {
+      distribMap[d._id] = d.distributed;
+    }
+    const districtData = districtCardsRaw
+      .map((d) => {
+        const distributed = distribMap[d._id] || 0;
+        return {
+          district: d._id,
+          totalCards: d.totalCards,
+          coveragePercent: d.totalCards > 0
+            ? Math.round((distributed / d.totalCards) * 100 * 10) / 10 : 0,
+          pendingRequests: 0,
+          openGrievances: 0,
+        };
+      })
+      .sort((a, b) => a.district.localeCompare(b.district));
 
     res.json({
-      rationCards: { byType: cardsByType, total: totalCards },
-      distribution: {
-        thisMonth: distributionsThisMonth,
-        coveragePercent: distributionCoverage,
-      },
+      totalRationCards: totalCards,
+      distributionCoverage,
       pendingFamilyRequests,
-      grievances: grievancesByStatus,
-      allocation: allocationSummary[0] || { totalAllocated: 0, totalReceived: 0 },
+      openGrievances,
+      cardsByType,
+      grievancesByType,
+      allocationVsDistribution,
+      monthlyTrend,
+      districtData,
     });
   } catch (error) {
     next(error);

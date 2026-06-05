@@ -6,7 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Shop {
   _id: string;
-  shopName: string;
+  name: string;
 }
 
 const GRIEVANCE_TYPES = ['quality', 'quantity', 'denial', 'corruption', 'other'] as const;
@@ -27,8 +27,8 @@ const FileGrievance = () => {
   useEffect(() => {
     const fetchShops = async () => {
       try {
-        const { data } = await api.get('/shops');
-        setShops(data.shops || data);
+        const { data } = await api.get('/shops/list');
+        setShops(data.shops || []);
       } catch {
         toast.error('Failed to load shops');
       } finally {
@@ -119,7 +119,7 @@ const FileGrievance = () => {
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
             <option value="">Select shop</option>
             {shops.map((s) => (
-              <option key={s._id} value={s._id}>{s.shopName}</option>
+              <option key={s._id} value={s._id}>{s.name}</option>
             ))}
           </select>
         </div>

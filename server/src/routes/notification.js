@@ -35,4 +35,16 @@ router.put('/mark-read/:id', authenticate, async (req, res, next) => {
   }
 });
 
+router.put('/mark-all-read', authenticate, async (req, res, next) => {
+  try {
+    await Notification.updateMany(
+      { userId: req.user._id, deliveredAt: null },
+      { deliveredAt: new Date() }
+    );
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

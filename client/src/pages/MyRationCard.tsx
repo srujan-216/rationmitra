@@ -66,7 +66,7 @@ const MyRationCard = () => {
   const fetchCard = async () => {
     try {
       const { data } = await api.get('/ration-cards/my-card');
-      setCard(data);
+      setCard(data.card);
       setCardError(null);
     } catch (err: any) {
       setCardError(err.response?.data?.message || null);
@@ -76,7 +76,7 @@ const MyRationCard = () => {
   const fetchRequests = async () => {
     try {
       const { data } = await api.get('/ration-cards/family-requests/mine');
-      setRequests(data);
+      setRequests(data.requests || []);
     } catch {
       // silent
     }
@@ -88,9 +88,12 @@ const MyRationCard = () => {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!card) return;
     setSubmitting(true);
     try {
       const formData = new FormData();
+      formData.append('rationCardId', card._id);
+      formData.append('type', 'addition');
       Object.entries(addForm).forEach(([k, v]) => formData.append(k, v));
       if (addCertificate) formData.append('certificate', addCertificate);
       await api.post('/ration-cards/family-request', formData, {
@@ -109,13 +112,15 @@ const MyRationCard = () => {
   };
 
   const handleRemoveSubmit = async () => {
-    if (!removeModal) return;
+    if (!removeModal || !card) return;
     setSubmitting(true);
     try {
+      const memberIndex = card.familyMembers.findIndex((m) => m._id === removeModal.memberId);
       const formData = new FormData();
-      formData.append('memberId', removeModal.memberId);
-      formData.append('reason', removeReason);
+      formData.append('rationCardId', card._id);
       formData.append('type', 'deletion');
+      formData.append('memberIndex', String(memberIndex));
+      formData.append('reason', removeReason);
       if (removeCertificate) formData.append('certificate', removeCertificate);
       await api.post('/ration-cards/family-request', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -178,7 +183,7 @@ const MyRationCard = () => {
             <p><span className="text-white/70">District:</span> <span className="font-medium">{card.district}</span></p>
             <p><span className="text-white/70">Mandal:</span> <span className="font-medium">{card.mandal}</span></p>
             {card.village && <p><span className="text-white/70">Village:</span> <span className="font-medium">{card.village}</span></p>}
-            <p><span className="text-white/70">FPS:</span> <span className="font-medium">{card.assignedFPS?.shopName || '—'}</span></p>
+            <p><span className="text-white/70">FPS:</span> <span className="font-medium">{(card.assignedFPS as any)?.name || '—'}</span></p>
           </div>
         </div>
         <div className="relative z-10 mt-4 pt-4 border-t border-white/20 flex items-center justify-between text-xs text-white/70">

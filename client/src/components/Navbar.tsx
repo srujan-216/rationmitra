@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useState, useEffect, useRef } from 'react';
+import api from '../api/axios';
 
 type NavItem = { to: string; label: string; icon: JSX.Element };
 
@@ -37,8 +38,21 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const moreRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetch = () => {
+      api.get('/notifications/unread-count')
+        .then(({ data }) => setUnreadCount(data.unreadCount || 0))
+        .catch(() => {});
+    };
+    fetch();
+    const id = setInterval(fetch, 30000);
+    return () => clearInterval(id);
+  }, [user]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -206,14 +220,20 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center gap-2">
             <Link
               to="/notifications"
-              className={`p-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition ${
+              className={`relative p-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition ${
                 isActive('/notifications') ? 'bg-primary-50 text-primary-700' : ''
               }`}
               title={t('notifications')}
+              onClick={() => setUnreadCount(0)}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
                 {ICON.bell}
               </svg>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
 
             <div className="relative" ref={userRef}>
@@ -324,11 +344,24 @@ const Navbar = () => {
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
                   isActive('/notifications') ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                 }`}
+                onClick={() => setUnreadCount(0)}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                  {ICON.bell}
-                </svg>
+                <div className="relative">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                    {ICON.bell}
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
                 {t('notifications')}
+                {unreadCount > 0 && (
+                  <span className="ml-auto text-xs font-semibold text-white bg-red-500 rounded-full px-1.5 py-0.5">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             </div>
 

@@ -31,7 +31,7 @@ const FamilyRequests = () => {
   const fetchRequests = async () => {
     try {
       const { data } = await api.get('/ration-cards/family-requests/pending');
-      setRequests(data);
+      setRequests(data.requests || []);
     } catch {
       toast.error('Failed to load family requests');
     } finally {

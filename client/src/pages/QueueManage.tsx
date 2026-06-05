@@ -51,6 +51,7 @@ const QueueManage = () => {
       s.emit('queue:join-room', shopId);
       s.on('queue:completed', () => fetchQueues());
       s.on('queue:position-update', () => fetchQueues());
+      s.on('queue:new-booking', () => fetchQueues());
       setSocket(s);
       return () => { s.disconnect(); };
     }

@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface CommodityEntitlement {
-  commodityId: string;
   name: string;
   entitledQty: number;
   rate: number;
@@ -12,6 +11,7 @@ interface CommodityEntitlement {
 }
 
 interface EntitlementData {
+  rationCardId: string;
   cardNumber: string;
   cardType: string;
   headOfFamily: string;
@@ -51,7 +51,7 @@ const RecordDistribution = () => {
       setEntitlement(data);
       const qtys: Record<string, number> = {};
       data.entitlements?.forEach((e: CommodityEntitlement) => {
-        qtys[e.commodityId] = e.entitledQty;
+        qtys[e.name] = e.entitledQty;
       });
       setDistributedQtys(qtys);
     } catch (err: any) {
@@ -74,8 +74,8 @@ const RecordDistribution = () => {
     setSubmitting(true);
     try {
       const commodities = entitlement.entitlements.map((e) => ({
-        commodityId: e.commodityId,
-        distributedQty: distributedQtys[e.commodityId] ?? 0,
+        name: e.name,
+        distributedQty: distributedQtys[e.name] ?? 0,
       }));
       const { data } = await api.post('/distributions/record', {
         cardNumber: entitlement.cardNumber,
@@ -83,7 +83,7 @@ const RecordDistribution = () => {
         verificationMethod,
         remarks,
       });
-      setResult(data);
+      setResult({ digitalSignatureHash: data.digitalSignatureHash, ticket: data.ticket });
       toast.success('Distribution recorded successfully');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to record distribution');
@@ -179,17 +179,17 @@ const RecordDistribution = () => {
                   </thead>
                   <tbody>
                     {entitlement.entitlements.map((item) => (
-                      <tr key={item.commodityId} className="border-t border-gray-100">
+                      <tr key={item.name} className="border-t border-gray-100">
                         <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.entitledQty}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.entitledQty} {item.unit}</td>
                         <td className="px-4 py-3">
                           <input
                             type="number"
                             min={0}
                             max={item.entitledQty}
-                            value={distributedQtys[item.commodityId] ?? 0}
+                            value={distributedQtys[item.name] ?? 0}
                             onChange={(e) =>
-                              handleQtyChange(item.commodityId, Number(e.target.value), item.entitledQty)
+                              handleQtyChange(item.name, Number(e.target.value), item.entitledQty)
                             }
                             className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                           />

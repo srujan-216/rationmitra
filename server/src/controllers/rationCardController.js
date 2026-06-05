@@ -1,5 +1,6 @@
 const RationCard = require('../models/RationCard');
 const FamilyRequest = require('../models/FamilyRequest');
+const User = require('../models/User');
 const { CARD_TYPES, TELANGANA_DISTRICTS } = require('../utils/telangana');
 
 exports.getMyCard = async (req, res, next) => {
@@ -31,7 +32,7 @@ exports.getCardById = async (req, res, next) => {
 
 exports.createCard = async (req, res, next) => {
   try {
-    const { cardType, district } = req.body;
+    const { cardType, district, headOfFamilyEmail, ...rest } = req.body;
 
     if (!CARD_TYPES.includes(cardType)) {
       return res.status(400).json({ message: `Invalid card type. Must be one of: ${CARD_TYPES.join(', ')}` });
@@ -40,7 +41,16 @@ exports.createCard = async (req, res, next) => {
       return res.status(400).json({ message: `Invalid district. Must be a valid Telangana district.` });
     }
 
-    const card = await RationCard.create(req.body);
+    let headOfFamily = rest.headOfFamily;
+    if (!headOfFamily && headOfFamilyEmail) {
+      const user = await User.findOne({ email: headOfFamilyEmail, role: 'cardholder' });
+      if (!user) {
+        return res.status(404).json({ message: `No cardholder found with email: ${headOfFamilyEmail}` });
+      }
+      headOfFamily = user._id;
+    }
+
+    const card = await RationCard.create({ ...rest, cardType, district, headOfFamily });
     res.status(201).json({ message: 'Ration card created', card });
   } catch (error) {
     next(error);
@@ -74,7 +84,11 @@ exports.searchCards = async (req, res, next) => {
 
     const skip = (Number(page) - 1) * Number(limit);
     const [cards, total] = await Promise.all([
-      RationCard.find(filter).skip(skip).limit(Number(limit)),
+      RationCard.find(filter)
+        .populate('headOfFamily', 'name email')
+        .populate('assignedFPS', 'name')
+        .skip(skip)
+        .limit(Number(limit)),
       RationCard.countDocuments(filter),
     ]);
 
@@ -94,14 +108,21 @@ exports.searchCards = async (req, res, next) => {
 
 exports.submitFamilyRequest = async (req, res, next) => {
   try {
-    const { rationCardId, type, memberDetails, memberIndex, reason } = req.body;
+    const { rationCardId, type, memberIndex, reason, name, aadhaar, relation, dob, gender } = req.body;
+
+    if (!rationCardId) return res.status(400).json({ message: 'rationCardId is required' });
+    if (!type) return res.status(400).json({ message: 'type is required' });
+
+    const memberDetails = type === 'addition'
+      ? { name, aadhaarNumber: aadhaar, relation, dob: dob ? new Date(dob) : undefined, gender }
+      : undefined;
 
     const requestData = {
       type,
       rationCardId,
       requestedBy: req.user._id,
       memberDetails,
-      memberIndex,
+      memberIndex: memberIndex != null ? Number(memberIndex) : undefined,
       reason,
     };
 
@@ -129,10 +150,18 @@ exports.getMyFamilyRequests = async (req, res, next) => {
 
 exports.getPendingFamilyRequests = async (req, res, next) => {
   try {
-    const requests = await FamilyRequest.find({ status: 'pending' })
+    const rawRequests = await FamilyRequest.find({ status: 'pending' })
       .populate('requestedBy', 'name')
       .populate('rationCardId', 'cardNumber district')
       .sort({ createdAt: -1 });
+
+    const requests = rawRequests.map((r) => ({
+      ...r.toObject(),
+      cardNumber: r.rationCardId?.cardNumber || 'N/A',
+      requesterName: r.requestedBy?.name || 'Unknown',
+      memberName: r.memberDetails?.name || '—',
+    }));
+
     res.json({ requests });
   } catch (error) {
     next(error);

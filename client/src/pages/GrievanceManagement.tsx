@@ -13,6 +13,7 @@ interface Grievance {
   userName: string;
   shopName: string;
   createdAt: string;
+  dueDate?: string;
 }
 
 interface GrievanceStats {
@@ -20,10 +21,11 @@ interface GrievanceStats {
   under_review: number;
   resolved: number;
   escalated: number;
+  overdueCount?: number;
 }
 
 const STATUSES = ['all', 'open', 'under_review', 'resolved', 'escalated'] as const;
-const TYPES = ['all', 'quality', 'quantity', 'availability', 'behaviour', 'other'] as const;
+const TYPES = ['all', 'quality', 'quantity', 'denial', 'corruption', 'other'] as const;
 const PRIORITIES = ['all', 'low', 'medium', 'high', 'critical'] as const;
 
 const statusBadge = (status: string) => {
@@ -44,6 +46,20 @@ const priorityBadge = (priority: string) => {
     critical: 'bg-red-100 text-red-700',
   };
   return map[priority] ?? 'bg-gray-100 text-gray-700';
+};
+
+const slaBadge = (dueDate: string | undefined, status: string) => {
+  if (!dueDate || status === 'resolved') return null;
+  const now = new Date();
+  const due = new Date(dueDate);
+  const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) {
+    return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{Math.abs(diffDays)}d overdue</span>;
+  }
+  if (diffDays <= 2) {
+    return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Due in {diffDays}d</span>;
+  }
+  return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Due in {diffDays}d</span>;
 };
 
 const GrievanceManagement = () => {
@@ -109,11 +125,12 @@ const GrievanceManagement = () => {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Grievance Management</h1>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <StatCard label="Open" count={stats.open} color="border-yellow-500" />
         <StatCard label="Under Review" count={stats.under_review} color="border-blue-500" />
         <StatCard label="Resolved" count={stats.resolved} color="border-green-500" />
         <StatCard label="Escalated" count={stats.escalated} color="border-red-500" />
+        <StatCard label="Overdue" count={stats.overdueCount ?? 0} color="border-rose-600" />
       </div>
 
       {/* Filters */}
@@ -183,6 +200,7 @@ const GrievanceManagement = () => {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Description</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">SLA</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">User</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Shop</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
@@ -205,6 +223,7 @@ const GrievanceManagement = () => {
                         {g.status.replace('_', ' ')}
                       </span>
                     </td>
+                    <td className="px-4 py-3">{slaBadge(g.dueDate, g.status)}</td>
                     <td className="px-4 py-3 text-gray-600">{g.userName}</td>
                     <td className="px-4 py-3 text-gray-600">{g.shopName}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(g.createdAt).toLocaleDateString()}</td>
@@ -277,13 +296,14 @@ const GrievanceManagement = () => {
               <div key={g._id} className="bg-white rounded-xl shadow-sm p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-mono text-xs text-gray-500">{g.grievanceNumber}</span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-end">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${priorityBadge(g.priority)}`}>
                       {g.priority}
                     </span>
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(g.status)}`}>
                       {g.status.replace('_', ' ')}
                     </span>
+                    {slaBadge(g.dueDate, g.status)}
                   </div>
                 </div>
                 <p className="text-sm font-medium text-gray-800 capitalize mb-1">{g.type}</p>

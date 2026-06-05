@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface CommodityAlloc {
-  commodityId: string;
   name: string;
   allocatedQty: number;
   receivedQty: number;
@@ -29,9 +28,10 @@ const MONTHS = [
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
+    planned: 'bg-gray-100 text-gray-700',
     dispatched: 'bg-blue-100 text-blue-800',
-    acknowledged: 'bg-green-100 text-green-800',
+    partially_received: 'bg-amber-100 text-amber-800',
+    received: 'bg-green-100 text-green-800',
     discrepancy: 'bg-red-100 text-red-800',
   };
   return map[status] ?? 'bg-gray-100 text-gray-800';
@@ -55,7 +55,7 @@ const ShopAllocation = () => {
       setAllocation(alloc);
       const qtys: Record<string, number> = {};
       alloc.commodities?.forEach((c: CommodityAlloc) => {
-        qtys[c.commodityId] = c.receivedQty ?? c.allocatedQty;
+        qtys[c.name] = c.receivedQty ?? c.allocatedQty;
       });
       setReceivedQtys(qtys);
     } catch (err: any) {
@@ -76,23 +76,23 @@ const ShopAllocation = () => {
     fetchAllocation();
   }, [fetchAllocation]);
 
-  const handleQtyChange = (commodityId: string, value: number) => {
-    setReceivedQtys((prev) => ({ ...prev, [commodityId]: Math.max(0, value) }));
+  const handleQtyChange = (name: string, value: number) => {
+    setReceivedQtys((prev) => ({ ...prev, [name]: Math.max(0, value) }));
   };
 
   const hasDiscrepancy = allocation?.commodities.some(
-    (c) => (receivedQtys[c.commodityId] ?? 0) !== c.allocatedQty
+    (c) => (receivedQtys[c.name] ?? 0) !== c.allocatedQty
   );
 
-  const isEditable = allocation && allocation.status !== 'acknowledged';
+  const isEditable = allocation && !['received', 'discrepancy'].includes(allocation.status);
 
   const acknowledgeReceipt = async () => {
     if (!allocation) return;
     setSubmitting(true);
     try {
       const receivedCommodities = allocation.commodities.map((c) => ({
-        commodityId: c.commodityId,
-        receivedQty: receivedQtys[c.commodityId] ?? 0,
+        name: c.name,
+        receivedQty: receivedQtys[c.name] ?? 0,
       }));
       await api.put(`/allocations/${allocation._id}/acknowledge`, { receivedCommodities });
       toast.success('Allocation receipt acknowledged');
@@ -180,10 +180,10 @@ const ShopAllocation = () => {
               </thead>
               <tbody>
                 {allocation.commodities.map((c) => {
-                  const received = receivedQtys[c.commodityId] ?? 0;
+                  const received = receivedQtys[c.name] ?? 0;
                   const match = received === c.allocatedQty;
                   return (
-                    <tr key={c.commodityId} className="border-t border-gray-100">
+                    <tr key={c.name} className="border-t border-gray-100">
                       <td className="px-4 py-3 font-medium text-gray-800">{c.name}</td>
                       <td className="px-4 py-3 text-gray-600">{c.allocatedQty}</td>
                       <td className="px-4 py-3">
@@ -192,7 +192,7 @@ const ShopAllocation = () => {
                             type="number"
                             min={0}
                             value={received}
-                            onChange={(e) => handleQtyChange(c.commodityId, Number(e.target.value))}
+                            onChange={(e) => handleQtyChange(c.name, Number(e.target.value))}
                             className={`w-24 border rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 outline-none ${
                               !match ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
                             }`}

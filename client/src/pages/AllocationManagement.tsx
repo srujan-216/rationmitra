@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { TELANGANA_DISTRICTS } from '../utils/telangana';
 
 interface CommodityAlloc {
-  commodityId: string;
   name: string;
   allocatedQty: number;
   receivedQty: number;
@@ -13,7 +13,7 @@ interface CommodityAlloc {
 
 interface Allocation {
   _id: string;
-  shopName: string;
+  shopId: { _id: string; name: string } | null;
   district: string;
   month: number;
   year: number;
@@ -24,15 +24,23 @@ interface Allocation {
 interface Shop {
   _id: string;
   name: string;
-  district: string;
+  district?: string;
 }
 
 interface CommodityInput {
-  commodityId: string;
   name: string;
   allocatedQty: number;
   rate: number;
 }
+
+const DEFAULT_COMMODITIES: CommodityInput[] = [
+  { name: 'Rice', allocatedQty: 0, rate: 1 },
+  { name: 'Wheat', allocatedQty: 0, rate: 2 },
+  { name: 'Sugar', allocatedQty: 0, rate: 13.5 },
+  { name: 'Kerosene', allocatedQty: 0, rate: 14.96 },
+  { name: 'Palm Oil', allocatedQty: 0, rate: 25 },
+  { name: 'Dal', allocatedQty: 0, rate: 20 },
+];
 
 const MONTHS = [
   { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
@@ -43,9 +51,10 @@ const MONTHS = [
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
+    planned: 'bg-gray-100 text-gray-700',
     dispatched: 'bg-blue-100 text-blue-800',
-    acknowledged: 'bg-green-100 text-green-800',
+    partially_received: 'bg-amber-100 text-amber-800',
+    received: 'bg-green-100 text-green-800',
     discrepancy: 'bg-red-100 text-red-800',
   };
   return map[status] ?? 'bg-gray-100 text-gray-800';
@@ -58,7 +67,6 @@ const AllocationManagement = () => {
   const [district, setDistrict] = useState('all');
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [districts, setDistricts] = useState<string[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
 
   // Form state
@@ -68,7 +76,7 @@ const AllocationManagement = () => {
   const [formYear, setFormYear] = useState(year);
   const [formDistrict, setFormDistrict] = useState('');
   const [formShopId, setFormShopId] = useState('');
-  const [commodityInputs, setCommodityInputs] = useState<CommodityInput[]>([]);
+  const [commodityInputs, setCommodityInputs] = useState<CommodityInput[]>(DEFAULT_COMMODITIES);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAllocations = useCallback(async () => {
@@ -77,8 +85,7 @@ const AllocationManagement = () => {
       const params: Record<string, string | number> = { month, year };
       if (district !== 'all') params.district = district;
       const { data } = await api.get('/allocations/all', { params });
-      setAllocations(data.allocations ?? data.data ?? data);
-      if (data.districts) setDistricts(data.districts);
+      setAllocations(data.allocations ?? data.data ?? []);
     } catch {
       toast.error('Failed to load allocations');
     } finally {
@@ -90,31 +97,16 @@ const AllocationManagement = () => {
     fetchAllocations();
   }, [fetchAllocations]);
 
-  // Load districts & shops for the form
   useEffect(() => {
     if (showForm) {
-      api.get('/allocations/districts').then(({ data }) => {
-        setDistricts(data.districts ?? data);
-      }).catch(() => {});
-      api.get('/allocations/shops').then(({ data }) => {
-        setShops(data.shops ?? data);
-      }).catch(() => {});
-      api.get('/allocations/commodities').then(({ data }) => {
-        const commodities = data.commodities ?? data;
-        setCommodityInputs(
-          commodities.map((c: any) => ({
-            commodityId: c._id,
-            name: c.name,
-            allocatedQty: 0,
-            rate: c.rate ?? 0,
-          }))
-        );
+      api.get('/shops/list').then(({ data }) => {
+        setShops(data.shops ?? []);
       }).catch(() => {});
     }
   }, [showForm]);
 
   const filteredShops = formDistrict
-    ? shops.filter((s) => s.district === formDistrict)
+    ? shops.filter((s) => !s.district || s.district === formDistrict)
     : shops;
 
   const handleCommodityChange = (idx: number, field: 'allocatedQty' | 'rate', value: number) => {
@@ -136,21 +128,48 @@ const AllocationManagement = () => {
     }
     setSubmitting(true);
     try {
-      const payload = {
-        month: formMonth,
-        year: formYear,
-        district: formDistrict,
-        shopId: bulkMode ? undefined : formShopId,
-        bulkMode,
-        commodities: commodityInputs.map((c) => ({
-          commodityId: c.commodityId,
-          allocatedQty: c.allocatedQty,
-          rate: c.rate,
-        })),
-      };
-      await api.post('/allocations/', payload);
-      toast.success(bulkMode ? 'Bulk allocation created for all shops in district' : 'Allocation created successfully');
+      const commodities = commodityInputs
+        .filter((c) => c.allocatedQty > 0)
+        .map((c) => ({ name: c.name, allocatedQty: c.allocatedQty, rate: c.rate }));
+
+      if (commodities.length === 0) {
+        toast.error('Enter allocated quantity for at least one commodity');
+        setSubmitting(false);
+        return;
+      }
+
+      if (bulkMode) {
+        const shopIds = shops
+          .filter((s) => !formDistrict || !s.district || s.district === formDistrict)
+          .map((s) => s._id);
+        if (shopIds.length === 0) {
+          toast.error('No shops found for this district');
+          setSubmitting(false);
+          return;
+        }
+        await api.post('/allocations/bulk', {
+          month: formMonth,
+          year: formYear,
+          district: formDistrict,
+          shopIds,
+          commodities,
+        });
+        toast.success(`Bulk allocation created for ${shopIds.length} shops`);
+      } else {
+        await api.post('/allocations/', {
+          month: formMonth,
+          year: formYear,
+          district: formDistrict,
+          shopId: formShopId,
+          commodities,
+        });
+        toast.success('Allocation created successfully');
+      }
+
       setShowForm(false);
+      setCommodityInputs(DEFAULT_COMMODITIES);
+      setFormDistrict('');
+      setFormShopId('');
       fetchAllocations();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create allocation');
@@ -205,10 +224,10 @@ const AllocationManagement = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
-              <select value={formDistrict} onChange={(e) => setFormDistrict(e.target.value)}
+              <select value={formDistrict} onChange={(e) => { setFormDistrict(e.target.value); setFormShopId(''); }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none">
                 <option value="">Select District</option>
-                {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+                {TELANGANA_DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             {!bulkMode && (
@@ -224,36 +243,34 @@ const AllocationManagement = () => {
           </div>
 
           {/* Commodities Grid */}
-          {commodityInputs.length > 0 && (
-            <div className="overflow-x-auto mb-6">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Commodity</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Allocated Qty</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Rate (Rs.)</th>
+          <div className="overflow-x-auto mb-6">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Commodity</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Allocated Qty (kg/L)</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Rate (Rs.)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commodityInputs.map((c, idx) => (
+                  <tr key={c.name} className="border-t border-gray-100">
+                    <td className="px-4 py-2 font-medium text-gray-800">{c.name}</td>
+                    <td className="px-4 py-2">
+                      <input type="number" min={0} value={c.allocatedQty}
+                        onChange={(e) => handleCommodityChange(idx, 'allocatedQty', Number(e.target.value))}
+                        className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 outline-none" />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input type="number" min={0} step={0.01} value={c.rate}
+                        onChange={(e) => handleCommodityChange(idx, 'rate', Number(e.target.value))}
+                        className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 outline-none" />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {commodityInputs.map((c, idx) => (
-                    <tr key={c.commodityId} className="border-t border-gray-100">
-                      <td className="px-4 py-2 font-medium text-gray-800">{c.name}</td>
-                      <td className="px-4 py-2">
-                        <input type="number" min={0} value={c.allocatedQty}
-                          onChange={(e) => handleCommodityChange(idx, 'allocatedQty', Number(e.target.value))}
-                          className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 outline-none" />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input type="number" min={0} step={0.01} value={c.rate}
-                          onChange={(e) => handleCommodityChange(idx, 'rate', Number(e.target.value))}
-                          className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 outline-none" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <button onClick={handleSubmit} disabled={submitting}
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg font-medium transition disabled:opacity-50">
@@ -282,7 +299,7 @@ const AllocationManagement = () => {
             <select value={district} onChange={(e) => setDistrict(e.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none">
               <option value="all">All Districts</option>
-              {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+              {TELANGANA_DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
         </div>
@@ -297,7 +314,7 @@ const AllocationManagement = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
           </svg>
           <h2 className="text-lg font-semibold text-gray-700 mb-2">No Allocations Found</h2>
-          <p className="text-gray-500 text-sm">No allocations found for the selected period. You can create a new allocation using the button above.</p>
+          <p className="text-gray-500 text-sm">No allocations found for the selected period.</p>
         </div>
       ) : (
         <>
@@ -315,20 +332,20 @@ const AllocationManagement = () => {
               <tbody>
                 {allocations.map((alloc) => (
                   <tr key={alloc._id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{alloc.shopName}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">{alloc.shopId?.name || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{alloc.district}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {alloc.commodities.map((c, idx) => (
                           <span key={idx} className="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                            {c.name}: {c.allocatedQty}/{c.receivedQty}
+                            {c.name}: {c.allocatedQty}/{c.receivedQty ?? 0}
                           </span>
                         ))}
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(alloc.status)}`}>
-                        {alloc.status}
+                        {alloc.status.replace('_', ' ')}
                       </span>
                     </td>
                   </tr>
@@ -342,16 +359,16 @@ const AllocationManagement = () => {
             {allocations.map((alloc) => (
               <div key={alloc._id} className="bg-white rounded-xl shadow-sm p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-800">{alloc.shopName}</span>
+                  <span className="font-medium text-gray-800">{alloc.shopId?.name || '—'}</span>
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(alloc.status)}`}>
-                    {alloc.status}
+                    {alloc.status.replace('_', ' ')}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">{alloc.district}</p>
                 <div className="flex flex-wrap gap-1">
                   {alloc.commodities.map((c, idx) => (
                     <span key={idx} className="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                      {c.name}: {c.allocatedQty}/{c.receivedQty}
+                      {c.name}: {c.allocatedQty}/{c.receivedQty ?? 0}
                     </span>
                   ))}
                 </div>

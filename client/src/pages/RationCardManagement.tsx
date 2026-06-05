@@ -11,8 +11,8 @@ interface RationCardRow {
   headOfFamily: { name: string; email: string };
   district: string;
   mandal: string;
-  assignedFPS: { shopName: string } | null;
-  activeMembersCount: number;
+  assignedFPS: { name: string } | null;
+  familyMembers: { status: string }[];
 }
 
 interface SearchResults {
@@ -24,7 +24,7 @@ interface SearchResults {
 
 interface Shop {
   _id: string;
-  shopName: string;
+  name: string;
 }
 
 const CARD_TYPE_COLORS: Record<string, string> = {
@@ -60,8 +60,8 @@ const RationCardManagement = () => {
 
   const fetchShops = async () => {
     try {
-      const { data } = await api.get('/shops');
-      setShops(data.shops || data);
+      const { data } = await api.get('/shops/list');
+      setShops(data.shops || []);
     } catch {
       // shops list may not be critical
     }
@@ -179,7 +179,7 @@ const RationCardManagement = () => {
                 onChange={(e) => setCreateForm({ ...createForm, assignedFPS: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
                 <option value="">Select shop</option>
-                {shops.map((s) => <option key={s._id} value={s._id}>{s.shopName}</option>)}
+                {shops.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
               </select>
             </div>
             <div className="flex items-end">
@@ -265,8 +265,8 @@ const RationCardManagement = () => {
                         <td className="px-4 py-3 text-gray-600 text-sm">{card.headOfFamily?.name || '-'}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm">{card.district}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm">{card.mandal}</td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">{card.assignedFPS?.shopName || '-'}</td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">{card.activeMembersCount}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm">{card.assignedFPS?.name || '-'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm">{card.familyMembers?.filter(m => m.status === 'active').length ?? 0}</td>
                       </tr>
                     ))}
                   </tbody>

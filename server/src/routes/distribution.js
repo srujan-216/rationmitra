@@ -8,6 +8,6 @@ router.get('/my-history', authenticate, authorize('cardholder'), distributionCon
 router.get('/receipt/:id', authenticate, distributionController.getDistributionReceipt);
 router.get('/shop-distributions', authenticate, authorize('shopowner', 'admin', 'sysadmin'), distributionController.getShopDistributions);
 router.get('/stats', authenticate, authorize('admin', 'sysadmin'), distributionController.getDistributionStats);
-router.get('/check-entitlement/:cardId', authenticate, authorize('shopowner', 'admin', 'sysadmin'), distributionController.checkEntitlement);
+router.get('/check-entitlement/:cardNumber', authenticate, authorize('shopowner', 'admin', 'sysadmin'), distributionController.checkEntitlement);
 
 module.exports = router;

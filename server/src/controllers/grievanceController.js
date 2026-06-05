@@ -1,5 +1,7 @@
 const Grievance = require('../models/Grievance');
 
+const SLA_DAYS = { critical: 3, high: 7, medium: 15, low: 30 };
+
 exports.fileGrievance = async (req, res, next) => {
   try {
     const { type, description, shopId } = req.body;
@@ -11,12 +13,16 @@ exports.fileGrievance = async (req, res, next) => {
       priority = 'medium';
     }
 
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + SLA_DAYS[priority]);
+
     const grievanceData = {
       userId: req.user._id,
       type,
       description,
       shopId,
       priority,
+      dueDate,
       timeline: [
         {
           status: 'open',
@@ -59,7 +65,8 @@ exports.getAllGrievances = async (req, res, next) => {
     if (type) filter.type = type;
 
     const skip = (Number(page) - 1) * Number(limit);
-    const [grievances, total] = await Promise.all([
+    const now = new Date();
+    const [grievances, total, statusCounts, overdueCount] = await Promise.all([
       Grievance.find(filter)
         .populate('userId', 'name')
         .populate('shopId', 'name')
@@ -67,10 +74,25 @@ exports.getAllGrievances = async (req, res, next) => {
         .limit(Number(limit))
         .sort({ createdAt: -1 }),
       Grievance.countDocuments(filter),
+      Grievance.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Grievance.countDocuments({ status: { $nin: ['resolved'] }, dueDate: { $lt: now } }),
     ]);
 
+    const stats = { open: 0, under_review: 0, resolved: 0, escalated: 0, overdueCount };
+    statusCounts.forEach(({ _id, count }) => {
+      if (_id in stats) stats[_id] = count;
+    });
+
+    const mappedGrievances = grievances.map((g) => ({
+      ...g.toObject(),
+      userName: g.userId?.name || 'Unknown',
+      shopName: g.shopId?.name || 'Unknown',
+    }));
+
     res.json({
-      grievances,
+      grievances: mappedGrievances,
+      stats,
+      totalPages: Math.ceil(total / Number(limit)),
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -131,7 +153,7 @@ exports.updateGrievanceStatus = async (req, res, next) => {
 
 exports.getGrievanceStats = async (req, res, next) => {
   try {
-    const [byStatus, byType, byPriority, resolutionData] = await Promise.all([
+    const [byStatus, byType, byPriority, resolutionData, overdueCount] = await Promise.all([
       Grievance.aggregate([
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
@@ -155,6 +177,10 @@ exports.getGrievanceStats = async (req, res, next) => {
         },
         { $group: { _id: null, avgDays: { $avg: '$resolutionDays' } } },
       ]),
+      Grievance.countDocuments({
+        status: { $nin: ['resolved'] },
+        dueDate: { $lt: new Date() },
+      }),
     ]);
 
     res.json({
@@ -164,6 +190,7 @@ exports.getGrievanceStats = async (req, res, next) => {
       avgResolutionDays: resolutionData[0]
         ? Math.round(resolutionData[0].avgDays * 10) / 10
         : 0,
+      overdueCount,
     });
   } catch (error) {
     next(error);

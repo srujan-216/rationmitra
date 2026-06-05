@@ -85,8 +85,11 @@ exports.getShopAllocation = async (req, res, next) => {
     if (month) filter.month = Number(month);
     if (year) filter.year = Number(year);
 
-    const allocations = await Allocation.find(filter).sort({ createdAt: -1 });
-    res.json({ allocations });
+    const allocation = await Allocation.findOne(filter).sort({ createdAt: -1 });
+    if (!allocation) {
+      return res.status(404).json({ message: 'No allocation found for this period' });
+    }
+    res.json({ allocation });
   } catch (error) {
     next(error);
   }
@@ -94,16 +97,21 @@ exports.getShopAllocation = async (req, res, next) => {
 
 exports.acknowledgeReceipt = async (req, res, next) => {
   try {
-    const { commodities } = req.body; // [{ name, receivedQty }]
+    const { commodities, receivedCommodities } = req.body;
+    const commoditiesList = commodities || receivedCommodities; // accept both key names
 
     const allocation = await Allocation.findById(req.params.id);
     if (!allocation) {
       return res.status(404).json({ message: 'Allocation not found' });
     }
 
+    if (!commoditiesList || !Array.isArray(commoditiesList)) {
+      return res.status(400).json({ message: 'commodities array is required' });
+    }
+
     let hasDiscrepancy = false;
     allocation.commodities = allocation.commodities.map((ac) => {
-      const received = commodities.find((c) => c.name === ac.name);
+      const received = commoditiesList.find((c) => c.name === ac.name);
       if (received) {
         ac.receivedQty = received.receivedQty;
         if (received.receivedQty !== ac.allocatedQty) {
