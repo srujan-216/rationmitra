@@ -54,6 +54,8 @@ const FraudAlerts = () => {
 
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [filter]);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 

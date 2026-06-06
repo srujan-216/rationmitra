@@ -34,9 +34,11 @@ const DemandPrediction = () => {
   const fetchPredictions = async () => {
     if (!selectedShop) return;
     setLoading(true);
+    setPredictions([]);
+    setSlotRecs([]);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await api.post('/ml/predict-demand', { date: today, numDays: 7 });
+      const { data } = await api.post('/ml/predict-demand', { shopId: selectedShop, date: today, numDays: 7 });
       setPredictions(data.predictions || []);
     } catch {
       toast.error('Prediction service unavailable');
@@ -48,6 +50,7 @@ const DemandPrediction = () => {
   const fetchSlotRecs = async (date: string) => {
     try {
       const { data } = await api.post('/ml/recommend-slots', {
+        shopId: selectedShop,
         date,
         slots: [
           { slotId: 'SLOT-1', startTime: '08:00', endTime: '10:00', capacity: 50 },

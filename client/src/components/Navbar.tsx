@@ -263,15 +263,24 @@ const Navbar = () => {
                     </span>
                   </div>
                   <div className="p-2">
-                    <button
-                      onClick={() => { setLanguage(language === 'en' ? 'hi' : 'en'); setUserMenuOpen(false); }}
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition"
-                    >
-                      <span>Language</span>
-                      <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">
-                        {language === 'en' ? 'EN' : 'हि'}
-                      </span>
-                    </button>
+                    <div className="px-3 py-2">
+                      <p className="text-xs text-gray-500 mb-1.5">Language</p>
+                      <div className="flex gap-1">
+                        {(['en', 'hi', 'te'] as const).map((lang) => (
+                          <button
+                            key={lang}
+                            onClick={() => { setLanguage(lang); setUserMenuOpen(false); }}
+                            className={`flex-1 py-1 text-xs font-mono rounded transition ${
+                              language === lang
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {lang === 'en' ? 'EN' : lang === 'hi' ? 'हि' : 'తె'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <button
                       onClick={() => { toggleTheme(); setUserMenuOpen(false); }}
                       className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition"
@@ -366,15 +375,24 @@ const Navbar = () => {
             </div>
 
             <div className="border-t border-gray-100 mt-3 pt-3 space-y-1">
-              <button
-                onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-              >
-                <span>Language</span>
-                <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">
-                  {language === 'en' ? 'EN' : 'हि'}
-                </span>
-              </button>
+              <div className="px-3 py-2">
+                <p className="text-xs text-gray-500 mb-1.5">Language</p>
+                <div className="flex gap-1">
+                  {(['en', 'hi', 'te'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={`flex-1 py-1 text-xs font-mono rounded transition ${
+                        language === lang
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {lang === 'en' ? 'EN' : lang === 'hi' ? 'हि' : 'తె'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 onClick={toggleTheme}
                 className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"

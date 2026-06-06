@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
@@ -7,7 +8,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const connectDB = require('./config/db');
-const { port, nodeEnv } = require('./config/env');
+const { port, nodeEnv, corsOrigin } = require('./config/env');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const errorHandler = require('./middleware/errorHandler');
 const setupSocket = require('./socket');
@@ -28,17 +29,23 @@ const grievanceRoutes = require('./routes/grievance');
 const allocationRoutes = require('./routes/allocation');
 const officerDashboardRoutes = require('./routes/officerDashboard');
 
+// Ensure uploads directory exists at startup
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: corsOrigin, methods: ['GET', 'POST'] },
 });
 
 // Make io accessible in controllers
 app.set('io', io);
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));

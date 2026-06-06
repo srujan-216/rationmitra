@@ -130,7 +130,7 @@ exports.getShopOwnerDashboard = async (req, res, next) => {
       Shop.findById(shopId).select('name code address rating totalRatings maxCapacityPerSlot'),
       Queue.find({ shopId, date: today }),
       Inventory.find({ shopId }),
-      Allocation.findOne({ shopId, month, year }),
+      Allocation.findOne({ shopId, month, year }).sort({ createdAt: -1 }),
       Distribution.find({ shopId, month, year }),
       Feedback.find({ shopId }).sort({ createdAt: -1 }).limit(5),
     ]);
@@ -234,6 +234,42 @@ exports.getShopOwnerDashboard = async (req, res, next) => {
       },
       recentFeedbacks,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getWeeklyTrends = async (req, res, next) => {
+  try {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+
+    const results = await Promise.all(
+      days.map(async (dayStart) => {
+        const dayEnd = new Date(dayStart);
+        dayEnd.setHours(23, 59, 59, 999);
+        const queues = await Queue.find({ date: { $gte: dayStart, $lte: dayEnd } });
+
+        let bookings = 0, served = 0, noShows = 0;
+        queues.forEach((q) => {
+          q.queueEntries.forEach((e) => {
+            bookings++;
+            if (e.status === 'completed') served++;
+            else if (e.status === 'no_show') noShows++;
+          });
+        });
+
+        const label = dayStart.toLocaleDateString('en-IN', { weekday: 'short' });
+        return { day: label, bookings, served, noShows };
+      })
+    );
+
+    res.json({ trends: results });
   } catch (error) {
     next(error);
   }

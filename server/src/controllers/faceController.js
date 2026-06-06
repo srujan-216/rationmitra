@@ -3,10 +3,15 @@ const mlService = require('../services/mlService');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { checkVerificationFraud } = require('../services/fraudDetectionService');
 
+const MAX_IMAGE_B64_BYTES = 4 * 1024 * 1024; // 4 MB base64 ≈ 3 MB raw
+
 exports.enroll = async (req, res, next) => {
   try {
     const { image } = req.body;
     if (!image) return res.status(400).json({ message: 'Image (base64) is required' });
+    if (Buffer.byteLength(image, 'utf8') > MAX_IMAGE_B64_BYTES) {
+      return res.status(413).json({ message: 'Image too large. Maximum size is 3 MB.' });
+    }
 
     // Check if already enrolled
     const existing = await FaceData.findOne({ userId: req.user._id });
@@ -51,7 +56,12 @@ exports.verify = async (req, res, next) => {
     }
 
     // Decrypt stored embedding
-    const storedEmbedding = JSON.parse(decrypt(faceData.faceEmbedding));
+    let storedEmbedding;
+    try {
+      storedEmbedding = JSON.parse(decrypt(faceData.faceEmbedding));
+    } catch {
+      return res.status(500).json({ message: 'Failed to decrypt stored face data. Re-enrollment required.' });
+    }
 
     // Verify via ML service
     const result = await mlService.verifyFace(liveImage, storedEmbedding);
@@ -105,6 +115,9 @@ exports.updateEnrollment = async (req, res, next) => {
   try {
     const { image } = req.body;
     if (!image) return res.status(400).json({ message: 'Image (base64) is required' });
+    if (Buffer.byteLength(image, 'utf8') > MAX_IMAGE_B64_BYTES) {
+      return res.status(413).json({ message: 'Image too large. Maximum size is 3 MB.' });
+    }
 
     const result = await mlService.generateFaceEmbedding(image);
     if (!result.embedding) {

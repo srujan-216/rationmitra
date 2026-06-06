@@ -106,14 +106,19 @@ def batch_sentiment():
 
 # ==================== Face Recognition ====================
 
+MAX_IMAGE_B64_BYTES = 4 * 1024 * 1024  # 4 MB
+
+
 @app.route('/api/ml/face/generate-embedding', methods=['POST'])
 def generate_face_embedding():
     """Generate 128D face embedding from base64 image."""
     data = request.json
     image_b64 = data.get('image')
 
-    if not image_b64:
-        return jsonify({'error': 'image (base64) is required'}), 400
+    if not image_b64 or not isinstance(image_b64, str):
+        return jsonify({'error': 'image (base64 string) is required'}), 400
+    if len(image_b64.encode('utf-8')) > MAX_IMAGE_B64_BYTES:
+        return jsonify({'error': 'Image too large. Maximum size is 3 MB.'}), 413
 
     # Anti-spoofing check
     spoof_check = face_service.detect_spoofing(image_b64)
@@ -138,8 +143,12 @@ def verify_face():
     live_image = data.get('liveImage')
     stored_embedding = data.get('storedEmbedding')
 
-    if not live_image or not stored_embedding:
-        return jsonify({'error': 'liveImage and storedEmbedding are required'}), 400
+    if not live_image or not isinstance(live_image, str):
+        return jsonify({'error': 'liveImage (base64 string) is required'}), 400
+    if not stored_embedding or not isinstance(stored_embedding, list):
+        return jsonify({'error': 'storedEmbedding (array) is required'}), 400
+    if len(live_image.encode('utf-8')) > MAX_IMAGE_B64_BYTES:
+        return jsonify({'error': 'Image too large. Maximum size is 3 MB.'}), 413
 
     # Generate embedding from live image
     live_embedding, error = face_service.generate_embedding(live_image)
@@ -195,4 +204,4 @@ def batch_forecast_stock():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true')

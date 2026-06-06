@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { translations, type TranslationKey } from '../i18n/translations';
 
-type Language = 'en' | 'hi';
+type Language = 'en' | 'hi' | 'te';
 
 interface LanguageContextType {
   language: Language;
@@ -14,7 +14,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const getStoredLanguage = (): Language => {
   try {
     const stored = localStorage.getItem('rationmitra-lang');
-    if (stored === 'en' || stored === 'hi') return stored;
+    if (stored === 'en' || stored === 'hi' || stored === 'te') return stored;
   } catch {
     // localStorage unavailable
   }

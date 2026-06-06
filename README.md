@@ -355,17 +355,8 @@ node src/scripts/seed.js
 
 ### Demo Accounts
 
-> Password for all accounts: **`password123`**
-
-| Role | Email | Description |
-|------|-------|-------------|
-| Admin | `admin@rationmitra.in` | District-level administrator |
-| Sysadmin | `sysadmin@rationmitra.in` | Full system access + audit logs |
-| Shop Owner | `ramesh@rationmitra.in` | FPS Kukatpally - Ward 12 |
-| Shop Owner | `suresh@rationmitra.in` | FPS Ameerpet - Ward 7 |
-| Cardholder | `user1@rationmitra.in` | Priya Sharma (TS-1000) |
-| Cardholder | `user2@rationmitra.in` | Amit Singh (TS-1001) |
-| Cardholder | `user3@rationmitra.in` ... `user10@rationmitra.in` | 8 more test cardholders |
+Seeded accounts follow the pattern `<role>@rationmitra.in` (e.g. `admin@rationmitra.in`, `ramesh@rationmitra.in`).
+See `server/src/scripts/seed.js` for the full account list and default credentials used for local development only.
 
 ### Seeded Shops
 

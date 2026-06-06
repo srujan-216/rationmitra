@@ -32,6 +32,23 @@ const BookSlot = () => {
   const [locLoading, setLocLoading] = useState(false);
   const [locationFetched, setLocationFetched] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [rationCollected, setRationCollected] = useState(false);
+  const [bookingInFlight, setBookingInFlight] = useState(false);
+
+  useEffect(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    api.get('/distributions/my-history')
+      .then(({ data }) => {
+        const distributions: any[] = data.distributions || [];
+        const collected = distributions.some(
+          (d) => d.month === currentMonth && d.year === currentYear
+        );
+        setRationCollected(collected);
+      })
+      .catch(() => {});
+  }, []);
 
   // Fallback: load all shops without geolocation (no distance info)
   useEffect(() => {
@@ -101,7 +118,8 @@ const BookSlot = () => {
   };
 
   const bookSlot = async (slotId: string) => {
-    if (!selectedShop) return;
+    if (!selectedShop || bookingInFlight) return;
+    setBookingInFlight(true);
     try {
       const { data } = await api.post('/queue/book-slot', {
         shopId: selectedShop._id,
@@ -112,6 +130,8 @@ const BookSlot = () => {
       fetchSlots();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Booking failed');
+    } finally {
+      setBookingInFlight(false);
     }
   };
 
@@ -173,6 +193,8 @@ const BookSlot = () => {
     );
   };
 
+  const currentMonthName = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
   return (
     <div>
       <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
@@ -183,6 +205,22 @@ const BookSlot = () => {
           </p>
         </div>
       </div>
+
+      {rationCollected && (
+        <div className="flex items-start gap-4 bg-amber-50 border border-amber-300 rounded-2xl p-5 mb-6">
+          <div className="w-10 h-10 flex-shrink-0 bg-amber-400 rounded-xl flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-amber-900">Ration collected for {currentMonthName}</p>
+            <p className="text-sm text-amber-700 mt-0.5">
+              Your ration has already been distributed this month. Slot booking will be available again from the 1st of next month.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Location CTA */}
       {!locationFetched && (
@@ -408,9 +446,10 @@ const BookSlot = () => {
                 {slot.available && (
                   <button
                     onClick={() => bookSlot(slot.slotId)}
-                    className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm font-medium transition"
+                    disabled={rationCollected || bookingInFlight}
+                    className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Book This Slot
+                    {bookingInFlight ? 'Booking...' : 'Book This Slot'}
                   </button>
                 )}
               </div>
@@ -426,12 +465,6 @@ const BookSlot = () => {
         </div>
       )}
 
-      {/* Debug: user coords */}
-      {userCoords && (
-        <p className="text-xs text-gray-400 text-center mt-6">
-          Your location: {userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)}
-        </p>
-      )}
     </div>
   );
 };

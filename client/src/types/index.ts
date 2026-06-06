@@ -61,7 +61,9 @@ export interface FeedbackData {
 export interface DashboardData {
   totalUsers: number;
   totalShops: number;
-  todayStats: { totalBookings: number; totalWaiting: number; totalServed: number };
+  todayStats: { totalBookings: number; totalWaiting: number; totalServed: number; avgServiceTime: number };
   lowStockItems: number;
+  openFraudAlerts: number;
+  roleDistribution: Record<string, number>;
   recentFeedbacks: FeedbackData[];
 }

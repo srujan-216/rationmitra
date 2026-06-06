@@ -6,8 +6,8 @@ const checkVerificationFraud = async (userId, userName, shopId) => {
   const faceData = await FaceData.findOne({ userId });
   if (!faceData) return;
 
-  // Alert on repeated verification failures (>3 in 24 hours)
-  if (faceData.failureCount > 0 && faceData.failureCount % 3 === 0) {
+  // Alert when failure count first reaches 3, then every 3 after that
+  if (faceData.failureCount >= 3 && faceData.failureCount % 3 === 0) {
     await FraudAlert.create({
       userId,
       userName,

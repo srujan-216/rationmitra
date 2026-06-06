@@ -27,4 +27,7 @@ const shopSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+shopSchema.index({ owner: 1 });
+shopSchema.index({ isActive: 1 });
+
 module.exports = mongoose.model('Shop', shopSchema);

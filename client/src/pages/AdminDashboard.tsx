@@ -56,20 +56,8 @@ const HeroStat = ({
   </div>
 );
 
-/* ---------- helpers ---------- */
-
-const buildWeeklyTrends = () => {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return days.map((day) => ({
-    day,
-    bookings: Math.floor(Math.random() * 40) + 20,
-    served: Math.floor(Math.random() * 35) + 15,
-    noShows: Math.floor(Math.random() * 8) + 1,
-  }));
-};
-
 const ROLE_COLORS = [COLORS.blue, COLORS.green, COLORS.yellow];
-const SENTIMENT_COLORS = [COLORS.green, COLORS.yellow, COLORS.red];
+
 
 const renderPieLabel = ({ name, percent }: { name?: string; percent?: number }) =>
   `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`;
@@ -80,15 +68,18 @@ const AdminDashboard = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [topShops, setTopShops] = useState<any[]>([]);
+  const [weeklyTrends, setWeeklyTrends] = useState<{ day: string; bookings: number; served: number; noShows: number }[]>([]);
 
   useEffect(() => {
     Promise.all([
       api.get('/analytics/dashboard'),
       api.get('/analytics/shop-performance').catch(() => ({ data: { performance: [] } })),
+      api.get('/analytics/weekly-trends').catch(() => ({ data: { trends: [] } })),
     ])
-      .then(([dashRes, perfRes]) => {
+      .then(([dashRes, perfRes, trendsRes]) => {
         setData(dashRes.data);
         setTopShops((perfRes.data.performance || []).slice(0, 5));
+        setWeeklyTrends(trendsRes.data.trends || []);
       })
       .catch(() => toast.error('Failed to load dashboard'))
       .finally(() => setLoading(false));
@@ -110,7 +101,9 @@ const AdminDashboard = () => {
         ["Today's Bookings", String(data.todayStats.totalBookings)],
         ['Currently Waiting', String(data.todayStats.totalWaiting)],
         ['Served Today', String(data.todayStats.totalServed)],
+        ['Avg Service Time', `${data.todayStats.avgServiceTime || 0} min`],
         ['Low Stock Items', String(data.lowStockItems)],
+        ['Open Fraud Alerts', String(data.openFraudAlerts)],
       ],
     });
     if (data.recentFeedbacks.length > 0) {
@@ -132,29 +125,28 @@ const AdminDashboard = () => {
   if (!data) return <div className="text-center py-12 text-gray-500">Failed to load data.</div>;
 
   /* derived chart data */
-  const completed = data.todayStats.totalBookings - data.todayStats.totalWaiting - data.todayStats.totalServed;
+  const todayCompleted = data.todayStats.totalBookings - data.todayStats.totalWaiting - data.todayStats.totalServed;
   const queueData = [
     { name: 'Waiting', count: data.todayStats.totalWaiting },
     { name: 'In Service', count: data.todayStats.totalServed },
-    { name: 'Completed', count: completed > 0 ? completed : 0 },
+    { name: 'Completed', count: todayCompleted > 0 ? todayCompleted : 0 },
   ];
 
-  const weeklyTrends = buildWeeklyTrends();
-
+  const rd = data.roleDistribution || {};
   const roleData = [
-    { name: 'Cardholder', value: Math.round(data.totalUsers * 0.75) },
-    { name: 'Shopowner', value: data.totalShops },
-    { name: 'Admin', value: Math.max(1, Math.round(data.totalUsers * 0.05)) },
+    { name: 'Cardholder', value: rd['cardholder'] || 0 },
+    { name: 'Shopowner', value: rd['shopowner'] || 0 },
+    { name: 'Admin', value: (rd['admin'] || 0) + (rd['sysadmin'] || 0) },
   ];
 
   const positive = data.recentFeedbacks.filter((f) => f.sentiment === 'positive').length;
   const negative = data.recentFeedbacks.filter((f) => f.sentiment === 'negative').length;
   const neutral = data.recentFeedbacks.length - positive - negative;
   const sentimentData = [
-    { name: 'Positive', value: positive || 4 },
-    { name: 'Neutral', value: neutral || 3 },
-    { name: 'Negative', value: negative || 1 },
-  ];
+    { name: 'Positive', value: positive || 0 },
+    { name: 'Neutral', value: neutral || 0 },
+    { name: 'Negative', value: negative || 0 },
+  ].filter((d) => d.value > 0);
 
   return (
     <div className="space-y-6">
@@ -220,9 +212,9 @@ const AdminDashboard = () => {
       {/* Secondary KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Avg Service Time', value: `${(data.todayStats as any).avgServiceTime || 8} min`, icon: '⏱' },
-          { label: 'Open Fraud Alerts', value: (data as any).openFraudAlerts || 0, icon: '⚠' },
-          { label: 'Positive Sentiment', value: `${sentimentData[0].value}`, icon: '😊' },
+          { label: 'Avg Service Time', value: `${data.todayStats.avgServiceTime || '—'} min`, icon: '⏱' },
+          { label: 'Open Fraud Alerts', value: data.openFraudAlerts || 0, icon: '⚠' },
+          { label: 'Positive Sentiment', value: sentimentData.find((d) => d.name === 'Positive')?.value ?? 0, icon: '😊' },
           { label: 'Capacity Utilization', value: '67%', icon: '📊' },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-3">
@@ -294,8 +286,8 @@ const AdminDashboard = () => {
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={sentimentData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={95} label={renderPieLabel}>
-                {sentimentData.map((_entry, idx) => (
-                  <Cell key={`sent-${idx}`} fill={SENTIMENT_COLORS[idx % SENTIMENT_COLORS.length]} />
+                {sentimentData.map((entry) => (
+                  <Cell key={`sent-${entry.name}`} fill={entry.name === 'Positive' ? COLORS.green : entry.name === 'Negative' ? COLORS.red : COLORS.yellow} />
                 ))}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }} />

@@ -47,21 +47,33 @@ exports.submitFeedback = async (req, res, next) => {
 exports.getShopSentiment = async (req, res, next) => {
   try {
     const { shopId } = req.params;
-    const feedbacks = await Feedback.find({ shopId }).sort({ createdAt: -1 }).limit(100);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(20, parseInt(req.query.limit) || 10);
+    const skip = (page - 1) * limit;
+
+    // Fetch all for aggregate stats, paginated slice for list
+    const [allFeedbacks, totalCount] = await Promise.all([
+      Feedback.find({ shopId }).sort({ createdAt: -1 }).select('rating sentiment topics'),
+      Feedback.countDocuments({ shopId }),
+    ]);
+
+    const recentFeedbacks = await Feedback.find({ shopId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     const sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
     let totalScore = 0;
     const topicCounts = {};
 
-    feedbacks.forEach((f) => {
-      if (f.sentiment) sentimentCounts[f.sentiment]++;
+    allFeedbacks.forEach((f) => {
+      if (f.sentiment) sentimentCounts[f.sentiment] = (sentimentCounts[f.sentiment] || 0) + 1;
       totalScore += f.rating;
       (f.topics || []).forEach((t) => {
         topicCounts[t] = (topicCounts[t] || 0) + 1;
       });
     });
 
-    // Sort topics by frequency
     const topTopics = Object.entries(topicCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -69,11 +81,12 @@ exports.getShopSentiment = async (req, res, next) => {
 
     res.json({
       shopId,
-      totalFeedbacks: feedbacks.length,
-      averageRating: feedbacks.length > 0 ? Math.round((totalScore / feedbacks.length) * 10) / 10 : 0,
+      totalFeedbacks: totalCount,
+      averageRating: allFeedbacks.length > 0 ? Math.round((totalScore / allFeedbacks.length) * 10) / 10 : 0,
       sentimentDistribution: sentimentCounts,
       topTopics,
-      recentFeedbacks: feedbacks.slice(0, 10),
+      recentFeedbacks,
+      pagination: { page, limit, totalPages: Math.ceil(totalCount / limit), hasMore: page * limit < totalCount },
     });
   } catch (error) {
     next(error);

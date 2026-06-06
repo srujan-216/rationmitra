@@ -1,17 +1,29 @@
 const { mlServiceUrl } = require('../config/env');
 
+const ML_TIMEOUT_MS = 15000;
+
 const callML = async (endpoint, body = {}) => {
   const url = `${mlServiceUrl}${endpoint}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `ML service error: ${response.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ML_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `ML service error: ${response.status}`);
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('ML service timeout');
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json();
 };
 
 exports.predictDemand = (data) => callML('/api/ml/predict-demand', data);

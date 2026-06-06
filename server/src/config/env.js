@@ -11,4 +11,5 @@ module.exports = {
   mlServiceUrl: process.env.ML_SERVICE_URL || 'http://localhost:5001',
   encryptionKey: process.env.ENCRYPTION_KEY || 'default_32_char_encryption_key!!',
   bcryptSaltRounds: 12,
+  corsOrigin: process.env.CORS_ORIGIN || '*',
 };

@@ -93,7 +93,7 @@ class StockForecaster:
             trend_label = 'insufficient_data'
 
         # ── Depletion & urgency ──────────────────────────────────────────
-        if avg_daily > 0:
+        if avg_daily > 0.001:
             days_until_depletion = int(current_stock / avg_daily)
             depletion_date = (
                 datetime.now() + timedelta(days=days_until_depletion)

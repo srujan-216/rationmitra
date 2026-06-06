@@ -47,7 +47,7 @@ const QueueManage = () => {
 
     const token = localStorage.getItem('accessToken');
     if (shopId && token) {
-      const s = socketIO({ auth: { token } });
+      const s = socketIO(import.meta.env.VITE_API_URL || window.location.origin, { auth: { token } });
       s.emit('queue:join-room', shopId);
       s.on('queue:completed', () => fetchQueues());
       s.on('queue:position-update', () => fetchQueues());

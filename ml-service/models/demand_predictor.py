@@ -109,7 +109,7 @@ class DemandPredictor:
 
             predicted = max(0.0, predicted)
             lower = max(0, round(predicted - 1.96 * std))
-            upper = round(predicted + 1.96 * std)
+            upper = min(round(predicted + 1.96 * std), round(predicted * 3) + 10)
 
             predictions.append({
                 'date': pred_date.strftime('%Y-%m-%d'),

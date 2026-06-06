@@ -1,11 +1,17 @@
 const Queue = require('../models/Queue');
 const Shop = require('../models/Shop');
+const RationCard = require('../models/RationCard');
+const Distribution = require('../models/Distribution');
 const { notifySlotBooked, notifyServiceComplete, notifyTurnApproaching } = require('../services/notificationService');
 const { checkDuplicateBooking } = require('../services/fraudDetectionService');
 
 const generateSlots = (shop) => {
+  if (!shop.operatingHours?.open || !shop.slotDurationMinutes || shop.slotDurationMinutes <= 0) {
+    return [];
+  }
   const slots = [];
   const [openH, openM] = shop.operatingHours.open.split(':').map(Number);
+  if (isNaN(openH) || isNaN(openM)) return [];
   for (let i = 0; i < shop.slotsPerDay; i++) {
     const startH = openH + Math.floor((openM + i * shop.slotDurationMinutes) / 60);
     const startM = (openM + i * shop.slotDurationMinutes) % 60;
@@ -85,7 +91,26 @@ exports.bookSlot = async (req, res, next) => {
       return res.status(400).json({ message: 'You already have a booking for this slot' });
     }
 
-    const ticketNumber = `T${Date.now().toString(36).toUpperCase()}`;
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const rationCard = await RationCard.findOne({ headOfFamily: req.user._id });
+    if (rationCard) {
+      const collected = await Distribution.findOne({
+        rationCardId: rationCard._id,
+        month: currentMonth,
+        year: currentYear,
+      });
+      if (collected) {
+        return res.status(400).json({
+          message: 'Ration already collected this month. New slots open next month.',
+          rationCollected: true,
+        });
+      }
+    }
+
+    const ym = `${currentYear}${String(currentMonth).padStart(2, '0')}`;
+    const ticketNumber = `RM-${ym}-${Math.floor(1000 + Math.random() * 9000)}`;
     queue.queueEntries.push({
       userId: req.user._id,
       userName: req.user.name,

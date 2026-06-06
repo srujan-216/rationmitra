@@ -7,6 +7,7 @@ router.get('/dashboard', authenticate, authorize('admin', 'sysadmin'), analytics
 router.get('/fraud-alerts', authenticate, authorize('admin', 'sysadmin'), analyticsController.getFraudAlerts);
 router.put('/fraud-alerts/:id', authenticate, authorize('admin', 'sysadmin'), analyticsController.updateFraudAlert);
 router.get('/audit-logs', authenticate, authorize('sysadmin'), analyticsController.getAuditLogs);
+router.get('/weekly-trends', authenticate, authorize('admin', 'sysadmin'), analyticsController.getWeeklyTrends);
 router.get('/shop-performance', authenticate, authorize('admin', 'sysadmin'), analyticsController.getShopPerformance);
 router.get('/shop-dashboard/:shopId', authenticate, authorize('shopowner', 'admin', 'sysadmin'), analyticsController.getShopOwnerDashboard);
 

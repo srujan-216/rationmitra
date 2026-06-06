@@ -90,6 +90,10 @@ router.post('/', authenticate, authorize('admin', 'sysadmin'), async (req, res, 
 // Update shop
 router.put('/:id', authenticate, authorize('shopowner', 'admin', 'sysadmin'), async (req, res, next) => {
   try {
+    if (req.user.role === 'shopowner' &&
+        String(req.user.shopAssignedTo) !== String(req.params.id)) {
+      return res.status(403).json({ message: 'You can only update your own shop' });
+    }
     const shop = await Shop.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!shop) return res.status(404).json({ message: 'Shop not found' });
     res.json({ message: 'Shop updated', shop });
