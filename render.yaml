@@ -24,15 +24,3 @@ services:
       - key: CORS_ORIGIN
         sync: false
 
-  - type: web
-    name: rationmitra-ml
-    env: python
-    region: singapore
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
-    rootDir: ml-service
-    envVars:
-      - key: PORT
-        value: 5001
-      - key: FLASK_DEBUG
-        value: false

@@ -1,0 +1,23 @@
+name: rationmitra-ml
+services:
+  - name: ml-service
+    type: web
+    git:
+      repository: github.com/srujan-216/rationmitra
+      branch: main
+      workdir: ml-service
+    build:
+      buildpack:
+        build_command: pip install -r requirements.txt
+        run_command: python app.py
+    instance_type: free
+    regions:
+      - sin
+    ports:
+      - port: 8000
+        protocol: http
+    env:
+      - key: PORT
+        value: "8000"
+      - key: FLASK_DEBUG
+        value: "false"
