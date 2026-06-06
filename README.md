@@ -11,9 +11,21 @@
   <img src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black" />
   <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/MongoDB-7-47A248?logo=mongodb&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Deployed-Render%20%2B%20Vercel-brightgreen" />
   <img src="https://img.shields.io/badge/License-MIT-green" />
 </p>
+
+---
+
+## Live Demo
+
+| Service | URL |
+|---------|-----|
+| Frontend | https://rationmitra.vercel.app |
+| Backend API | https://rationmitra-server.onrender.com/api/health |
+| ML Service | https://rationmitra-ml.onrender.com/api/health |
+
+> **Note:** Render free tier spins down after inactivity — first request may take ~30 seconds.
 
 ---
 
@@ -93,10 +105,12 @@ These issues disproportionately affect daily-wage workers, elderly citizens, and
 
 ### Infrastructure
 
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| Docker Compose | 3.8 | Container orchestration |
-| MongoDB | 7 | Document database |
+| Technology | Purpose |
+|-----------|---------|
+| Vercel | Frontend hosting (CDN, automatic deploys) |
+| Render | Backend + ML service hosting (Singapore region) |
+| MongoDB Atlas M0 | Cloud database (free tier) |
+| Docker Compose | Local development orchestration |
 
 ---
 
@@ -269,7 +283,7 @@ rationmitra/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/rationmitra.git
+git clone https://github.com/srujan-216/rationmitra.git
 cd rationmitra
 
 # Start all services (MongoDB, Server, Client, ML Service)
@@ -492,23 +506,48 @@ Rice (kg), Wheat (kg), Sugar (kg), Kerosene Oil (liter), Toor Dal (kg) -- each w
 
 ---
 
-## Screenshots
 
-> Replace these placeholders with actual screenshots.
+## Deployment (Production)
 
-| Screen | Description |
-|--------|-------------|
-| ![Login](docs/screenshots/login.png) | Login page |
-| ![Dashboard](docs/screenshots/dashboard.png) | Role-aware dashboard |
-| ![Book Slot](docs/screenshots/book-slot.png) | Slot booking with shop selection |
-| ![Queue Management](docs/screenshots/queue-manage.png) | Live queue panel for shop owners |
-| ![Inventory](docs/screenshots/inventory.png) | Stock management with reorder alerts |
-| ![Stock Forecast](docs/screenshots/stock-forecast.png) | ML-powered depletion forecast |
-| ![Demand Prediction](docs/screenshots/demand-prediction.png) | Footfall prediction charts |
-| ![Face Enroll](docs/screenshots/face-enroll.png) | Face enrollment with liveness check |
-| ![Feedback](docs/screenshots/feedback.png) | Bilingual feedback with sentiment |
-| ![Admin Dashboard](docs/screenshots/admin-dashboard.png) | Analytics & KPI dashboard |
-| ![Fraud Alerts](docs/screenshots/fraud-alerts.png) | Fraud detection alerts |
+The app is deployed using a three-service cloud stack:
+
+| Layer | Provider | Config |
+|-------|----------|--------|
+| Frontend | Vercel | Root dir: `client`, `VITE_API_URL` env var |
+| Backend + ML | Render | Auto-detected via `render.yaml` Blueprint |
+| Database | MongoDB Atlas M0 | `mongodb+srv://` connection string |
+
+### Deploy from scratch
+
+**1. MongoDB Atlas**
+- Create free M0 cluster at [cloud.mongodb.com](https://cloud.mongodb.com)
+- Allow all IPs (`0.0.0.0/0`) under Network Access
+- Copy the `mongodb+srv://` connection URI
+
+**2. Render (Backend + ML)**
+- New → Blueprint → connect this repo
+- Render auto-reads `render.yaml` and creates both services
+- Set environment variables for `rationmitra-server`:
+
+```
+MONGO_URI=<Atlas URI>
+JWT_SECRET=<random string>
+JWT_REFRESH_SECRET=<random string>
+ENCRYPTION_KEY=<exactly 32 characters>
+ML_SERVICE_URL=https://rationmitra-ml.onrender.com
+CORS_ORIGIN=https://rationmitra.vercel.app
+```
+
+**3. Vercel (Frontend)**
+- New Project → import this repo
+- Root Directory: `client`
+- Add env var: `VITE_API_URL=https://rationmitra-server.onrender.com`
+
+**4. Seed the database**
+- Open Render shell for `rationmitra-server` and run:
+```bash
+node src/scripts/seed.js
+```
 
 ---
 
